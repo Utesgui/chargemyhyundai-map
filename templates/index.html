@@ -1146,9 +1146,9 @@
                 justify-content: center;
             }
             
-            /* Adjust stats bar for mobile - bottom left, matching legend width */
+            /* Adjust stats bar for mobile - align with buttons */
             .stats-bar {
-                bottom: max(calc(env(safe-area-inset-bottom) + 90px), 110px);
+                bottom: max(env(safe-area-inset-bottom), 20px);
                 min-width: 120px;
             }
             
@@ -1170,9 +1170,9 @@
                 display: none;
             }
             
-            /* Adjust legend for mobile - bottom right, matching stats width */
+            /* Adjust legend for mobile - align with buttons */
             .map-legend {
-                bottom: max(calc(env(safe-area-inset-bottom) + 90px), 110px);
+                bottom: max(env(safe-area-inset-bottom), 20px);
                 right: 10px;
                 font-size: 0.8em;
                 padding: 10px 12px;
@@ -1213,9 +1213,9 @@
                 font-size: 1.1em;
             }
             
-            /* Stats and legend boxes stay above buttons with consistent spacing */
+            /* Stats and legend boxes align with buttons */
             .stats-bar {
-                bottom: max(calc(env(safe-area-inset-bottom) + 70px), 90px);
+                bottom: max(env(safe-area-inset-bottom), 10px);
                 gap: 5px;
                 padding: 8px 10px;
                 font-size: 0.75em;
@@ -1237,7 +1237,7 @@
             }
             
             .map-legend {
-                bottom: max(calc(env(safe-area-inset-bottom) + 70px), 90px);
+                bottom: max(env(safe-area-inset-bottom), 10px);
                 font-size: 0.7em;
                 padding: 8px 10px;
                 min-width: 110px;
