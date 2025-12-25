@@ -884,6 +884,44 @@
             border: 0;
         }
         
+        /* Toggle Buttons for Mobile */
+        .panel-toggle-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1002;
+            background: rgba(0, 169, 224, 0.95);
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2em;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .panel-toggle-btn:hover {
+            background: rgba(0, 119, 182, 0.95);
+            transform: translateY(-50%) scale(1.05);
+        }
+        
+        .panel-toggle-btn:active {
+            transform: translateY(-50%) scale(0.95);
+        }
+        
+        .panel-toggle-btn.left {
+            left: 10px;
+        }
+        
+        .panel-toggle-btn.right {
+            right: 10px;
+        }
+        
         /* Responsive */
         @media (max-width: 768px) {
             .container {
@@ -894,11 +932,43 @@
                 width: 100%;
                 height: 50vh;
                 order: 2;
+                position: relative;
+            }
+            
+            .sidebar-content {
+                transition: transform 0.3s ease;
+            }
+            
+            .filters-panel {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                z-index: 2;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            
+            .filters-panel.visible {
+                transform: translateX(0);
+            }
+            
+            .stations-list {
+                width: 100%;
+            }
+            
+            .stations-list.hidden {
+                transform: translateX(100%);
             }
             
             .map-container {
                 height: 50vh;
                 order: 1;
+            }
+            
+            .panel-toggle-btn {
+                display: flex;
             }
         }
     </style>
@@ -1032,6 +1102,14 @@
         
         <!-- Map Container -->
         <div class="map-container">
+            <!-- Toggle buttons for mobile -->
+            <button class="panel-toggle-btn left" id="filterToggleBtn" aria-label="Filter anzeigen/ausblenden" title="Filter">
+                <i class="fas fa-sliders-h" aria-hidden="true"></i>
+            </button>
+            <button class="panel-toggle-btn right" id="listToggleBtn" aria-label="Liste anzeigen/ausblenden" title="Liste">
+                <i class="fas fa-list" aria-hidden="true"></i>
+            </button>
+            
             <div id="map"></div>
             
             <!-- Loading Overlay -->
@@ -2097,7 +2175,12 @@
         
         // Event Listeners
         document.addEventListener('DOMContentLoaded', () => {
-            initMap();
+            // Try to initialize map, but don't let it break other functionality
+            try {
+                initMap();
+            } catch (error) {
+                console.error('Failed to initialize map:', error);
+            }
             
             // Tariff toggle
             document.querySelectorAll('.tariff-btn').forEach(btn => {
@@ -2229,6 +2312,44 @@
             searchBtn.addEventListener('click', doSearch);
             searchInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') doSearch();
+            });
+            
+            // Mobile panel toggles
+            const filterToggleBtn = document.getElementById('filterToggleBtn');
+            const listToggleBtn = document.getElementById('listToggleBtn');
+            const filtersPanel = document.getElementById('filters-tab');
+            const listPanel = document.getElementById('list-tab');
+            
+            // Filter toggle
+            filterToggleBtn.addEventListener('click', () => {
+                const isVisible = filtersPanel.classList.contains('visible');
+                if (isVisible) {
+                    // Hide filter panel
+                    filtersPanel.classList.remove('visible');
+                    filterToggleBtn.querySelector('i').className = 'fas fa-sliders-h';
+                } else {
+                    // Show filter panel, hide list panel
+                    filtersPanel.classList.add('visible');
+                    listPanel.classList.add('hidden');
+                    filterToggleBtn.querySelector('i').className = 'fas fa-times';
+                    listToggleBtn.querySelector('i').className = 'fas fa-list';
+                }
+            });
+            
+            // List toggle
+            listToggleBtn.addEventListener('click', () => {
+                const isHidden = listPanel.classList.contains('hidden');
+                if (isHidden) {
+                    // Show list panel, hide filter panel
+                    listPanel.classList.remove('hidden');
+                    filtersPanel.classList.remove('visible');
+                    listToggleBtn.querySelector('i').className = 'fas fa-times';
+                    filterToggleBtn.querySelector('i').className = 'fas fa-sliders-h';
+                } else {
+                    // Hide list panel
+                    listPanel.classList.add('hidden');
+                    listToggleBtn.querySelector('i').className = 'fas fa-list';
+                }
             });
         });
     </script>
