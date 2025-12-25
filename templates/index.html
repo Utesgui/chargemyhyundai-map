@@ -1,0 +1,1845 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChargeMyHyundai Price Map</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 700px;
+            background: #16213e;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #0f3460;
+            overflow: hidden;
+        }
+        
+        .sidebar-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            background: linear-gradient(135deg, #002f6c 0%, #00447c 100%);
+            border-bottom: 2px solid #00a9e0;
+        }
+        
+        .sidebar-header h1 {
+            font-size: 1.4em;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .sidebar-header h1 i {
+            color: #00a9e0;
+        }
+        
+        .sidebar-header p {
+            font-size: 0.85em;
+            color: #aaa;
+            margin-top: 5px;
+        }
+        
+        /* Filters Panel */
+        .filters-panel {
+            width: 50%;
+            padding: 12px;
+            background: #1a1a2e;
+            border-right: 1px solid #0f3460;
+            overflow-y: auto;
+        }
+        
+        .filter-group {
+            margin-bottom: 15px;
+        }
+        
+        .filter-group label {
+            display: block;
+            font-size: 0.85em;
+            color: #aaa;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        /* Tariff Toggle */
+        .tariff-toggle {
+            display: flex;
+            background: #0f3460;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .tariff-btn {
+            flex: 1;
+            padding: 12px 15px;
+            border: none;
+            background: transparent;
+            color: #888;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9em;
+        }
+        
+        .tariff-btn:hover {
+            color: #fff;
+        }
+        
+        .tariff-btn.active {
+            background: #00a9e0;
+            color: #fff;
+        }
+        
+        .tariff-btn .price {
+            display: block;
+            font-size: 0.75em;
+            opacity: 0.8;
+            margin-top: 3px;
+        }
+        
+        /* Power Type Toggle */
+        .power-toggle {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .power-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #0f3460;
+            background: transparent;
+            color: #888;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .power-btn:hover {
+            border-color: #00a9e0;
+            color: #fff;
+        }
+        
+        .power-btn.active {
+            border-color: #00a9e0;
+            background: rgba(0, 169, 224, 0.2);
+            color: #00a9e0;
+        }
+        
+        /* Max Price Slider */
+        .price-slider {
+            width: 100%;
+        }
+        
+        .price-slider input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #0f3460;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .price-slider input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #00a9e0;
+            cursor: pointer;
+        }
+        
+        .price-value {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85em;
+            color: #888;
+            margin-top: 5px;
+        }
+        
+        .price-value .current {
+            color: #00a9e0;
+            font-weight: bold;
+        }
+        
+        /* Additional Filters */
+        .filter-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .filter-chip {
+            padding: 6px 12px;
+            border: 1px solid #0f3460;
+            border-radius: 20px;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: transparent;
+            color: #888;
+        }
+        
+        .filter-chip:hover {
+            border-color: #00a9e0;
+            color: #fff;
+        }
+        
+        .filter-chip.active {
+            background: #00a9e0;
+            border-color: #00a9e0;
+            color: #fff;
+        }
+        
+        /* Stations List */
+        .stations-list {
+            width: 50%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 0;
+        }
+        
+        .list-header-fixed {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: #0f3460;
+            border-bottom: 1px solid #1a3a5c;
+            flex-shrink: 0;
+        }
+        
+        .list-header-fixed span {
+            font-size: 0.9em;
+            color: #8ab4d8;
+            font-weight: 500;
+        }
+        
+        .list-scroll-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+        
+        .station-card {
+            background: linear-gradient(145deg, #0f3460 0%, #16213e 100%);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            border: 1px solid #1a3a5c;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .station-card:hover {
+            border-color: #00a9e0;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(0, 169, 224, 0.15);
+        }
+        
+        .station-card.selected {
+            border-color: #00a9e0;
+            background: linear-gradient(145deg, #0a2d4d 0%, #0f3460 100%);
+            box-shadow: 0 0 0 2px rgba(0, 169, 224, 0.2);
+        }
+        
+        .station-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .station-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .station-name {
+            font-weight: 600;
+            font-size: 0.95em;
+            color: #fff;
+            line-height: 1.3;
+            margin-bottom: 4px;
+            word-wrap: break-word;
+        }
+        
+        .station-price {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9em;
+            white-space: nowrap;
+            flex-shrink: 0;
+            box-shadow: 0 2px 6px rgba(46, 204, 113, 0.3);
+        }
+        
+        .station-price.cheap {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            box-shadow: 0 2px 6px rgba(46, 204, 113, 0.3);
+        }
+        
+        .station-price.expensive {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            box-shadow: 0 2px 6px rgba(231, 76, 60, 0.3);
+        }
+        
+        .station-price.moderate {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            box-shadow: 0 2px 6px rgba(243, 156, 18, 0.3);
+        }
+        
+        .station-price.foreign {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            box-shadow: 0 2px 6px rgba(155, 89, 182, 0.3);
+        }
+        
+        .station-address {
+            font-size: 0.82em;
+            color: #8ab4d8;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+            line-height: 1.4;
+        }
+        
+        .station-address i {
+            color: #00a9e0;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        
+        .station-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            font-size: 0.8em;
+            color: #7a99b5;
+            padding-top: 10px;
+            border-top: 1px solid #1a3a5c;
+        }
+        
+        .station-details span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .status-available {
+            color: #2ecc71;
+        }
+        
+        .status-occupied {
+            color: #e74c3c;
+        }
+        
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+        
+        .loading i {
+            font-size: 2em;
+            margin-bottom: 10px;
+            color: #00a9e0;
+        }
+        
+        /* Map Container */
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Custom Markers */
+        .price-marker {
+            background: linear-gradient(135deg, #00a9e0, #0077b6);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 11px;
+            white-space: nowrap;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            border: 2px solid white;
+            text-align: center;
+            min-width: 45px;
+        }
+        
+        .price-marker.dual {
+            padding: 4px 6px;
+            font-size: 10px;
+            line-height: 1.3;
+            min-width: 60px;
+        }
+        
+        .price-marker.expensive {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+        
+        .price-marker.moderate {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+        }
+        
+        .price-marker.cheap {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+        }
+        
+        .price-marker.unavailable {
+            background: #666;
+            opacity: 0.7;
+        }
+        
+        .cluster-marker {
+            background: #0f3460;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            border: 2px solid #00a9e0;
+        }
+        
+        /* Map Legend */
+        .map-legend {
+            position: absolute;
+            bottom: 30px;
+            right: 10px;
+            background: rgba(22, 33, 62, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            z-index: 1000;
+            font-size: 0.8em;
+        }
+        
+        .legend-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #fff;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 5px;
+            color: #aaa;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 12px;
+            border-radius: 6px;
+        }
+        
+        .legend-color.cheap { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+        .legend-color.moderate { background: linear-gradient(135deg, #f39c12, #e67e22); }
+        .legend-color.expensive { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        .legend-color.foreign { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+        
+        /* Loading Overlay */
+        .loading-overlay {
+            position: absolute;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(22, 33, 62, 0.95);
+            padding: 10px 20px;
+            border-radius: 20px;
+            z-index: 1001;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85em;
+        }
+        
+        .loading-overlay.visible {
+            display: flex;
+        }
+        
+        .loading-overlay i {
+            color: #00a9e0;
+        }
+        
+        .loading-progress {
+            color: #aaa;
+        }
+        
+        /* Operator Filter */
+        .operator-filter {
+            background: #0f3460;
+            border-radius: 8px;
+            padding: 10px;
+        }
+        
+        .operator-filter-header {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .operator-filter-btn {
+            flex: 1;
+            padding: 6px 10px;
+            border: 1px solid #1a1a2e;
+            background: transparent;
+            color: #888;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.75em;
+            transition: all 0.2s;
+        }
+        
+        .operator-filter-btn:hover {
+            border-color: #00a9e0;
+            color: #fff;
+        }
+        
+        .operator-filter-btn.active-include {
+            background: #2ecc71;
+            border-color: #2ecc71;
+            color: #fff;
+        }
+        
+        .operator-filter-btn.active-exclude {
+            background: #e74c3c;
+            border-color: #e74c3c;
+            color: #fff;
+        }
+        
+        .operator-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .operator-tag {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.7em;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #1a1a2e;
+            color: #888;
+            border: 1px solid transparent;
+        }
+        
+        .operator-tag:hover {
+            border-color: #00a9e0;
+            color: #fff;
+        }
+        
+        .operator-tag.included {
+            background: rgba(46, 204, 113, 0.3);
+            border-color: #2ecc71;
+            color: #2ecc71;
+        }
+        
+        .operator-tag.excluded {
+            background: rgba(231, 76, 60, 0.3);
+            border-color: #e74c3c;
+            color: #e74c3c;
+        }
+        
+        /* Station CPO Name */
+        .station-cpo {
+            font-size: 0.78em;
+            color: #5aa3d8;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .station-cpo::before {
+            content: '⚡';
+            font-size: 0.9em;
+        }
+        
+        /* Foreign currency marker */
+        .price-marker.foreign {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+        }
+        
+        .sort-select {
+            background: #1a1a2e;
+            color: #fff;
+            border: 1px solid #0f3460;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 0.8em;
+            cursor: pointer;
+        }
+        
+        /* Stats Bar */
+        .stats-bar {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(22, 33, 62, 0.95);
+            padding: 10px 20px;
+            border-radius: 25px;
+            z-index: 1000;
+            display: flex;
+            gap: 20px;
+            font-size: 0.85em;
+        }
+        
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .stat i {
+            color: #00a9e0;
+        }
+        
+        .stat-value {
+            font-weight: bold;
+            color: #fff;
+        }
+        
+        /* Popup */
+        .leaflet-popup-content-wrapper {
+            background: #16213e;
+            color: #fff;
+            border-radius: 10px;
+        }
+        
+        .leaflet-popup-tip {
+            background: #16213e;
+        }
+        
+        .popup-content {
+            padding: 5px;
+            min-width: 200px;
+        }
+        
+        .popup-title {
+            font-weight: bold;
+            font-size: 1em;
+            margin-bottom: 8px;
+            color: #00a9e0;
+        }
+        
+        .popup-address {
+            font-size: 0.85em;
+            color: #aaa;
+            margin-bottom: 10px;
+        }
+        
+        .popup-prices {
+            background: #0f3460;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .popup-price-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .popup-price-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .popup-price-label {
+            color: #888;
+        }
+        
+        .popup-price-value {
+            font-weight: bold;
+            color: #00a9e0;
+        }
+        
+        .popup-operator {
+            font-size: 0.8em;
+            color: #888;
+        }
+        
+        /* Search Box */
+        .search-box {
+            position: absolute;
+            top: 10px;
+            left: 50px;
+            z-index: 1000;
+            background: rgba(22, 33, 62, 0.95);
+            border-radius: 25px;
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            width: 300px;
+        }
+        
+        .search-box input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 10px 15px;
+            color: #fff;
+            font-size: 0.9em;
+            outline: none;
+        }
+        
+        .search-box input::placeholder {
+            color: #666;
+        }
+        
+        .search-box button {
+            background: #00a9e0;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .search-box button:hover {
+            background: #0077b6;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: 50vh;
+                order: 2;
+            }
+            
+            .map-container {
+                height: 50vh;
+                order: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="fas fa-charging-station"></i> Charge Price Map</h1>
+                <p>ChargeMyHyundai Preisübersicht</p>
+            </div>
+            
+            <!-- Sidebar Content: Filter + List side by side -->
+            <div class="sidebar-content">
+            
+            <!-- Filters Panel -->
+            <div class="filters-panel" id="filters-tab">
+                <!-- Tariff Toggle -->
+                <div class="filter-group">
+                    <label><i class="fas fa-tag"></i> Tarif</label>
+                    <div class="tariff-toggle">
+                        <button class="tariff-btn active" data-tariff="HYUNDAI_FLEX">
+                            Flex
+                            <span class="price">0€/Monat</span>
+                        </button>
+                        <button class="tariff-btn" data-tariff="HYUNDAI_SMART">
+                            Smart
+                            <span class="price">9,99€/Monat</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Power Type Toggle (Multi-Select) -->
+                <div class="filter-group">
+                    <label><i class="fas fa-bolt"></i> Ladetyp (Mehrfachauswahl)</label>
+                    <div class="power-toggle">
+                        <button class="power-btn active" data-power="AC">
+                            <i class="fas fa-plug"></i> AC (Typ 2)
+                        </button>
+                        <button class="power-btn active" data-power="DC">
+                            <i class="fas fa-bolt"></i> DC (CCS)
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Charge Speed Selector -->
+                <div class="filter-group">
+                    <label><i class="fas fa-tachometer-alt"></i> Min. Ladeleistung</label>
+                    <div class="price-slider">
+                        <input type="range" id="minPower" min="0" max="350" step="50" value="0">
+                        <div class="price-value">
+                            <span>Alle</span>
+                            <span class="current" id="minPowerValue">Alle</span>
+                            <span>350 kW</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Max Price Filter -->
+                <div class="filter-group">
+                    <label><i class="fas fa-euro-sign"></i> Max. Preis (€/kWh) - nur EUR</label>
+                    <div class="price-slider">
+                        <input type="range" id="maxPrice" min="0.20" max="1.50" step="0.01" value="1.50">
+                        <div class="price-value">
+                            <span>0,20€</span>
+                            <span class="current" id="maxPriceValue">1,50€</span>
+                            <span>1,50€</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Additional Filters -->
+                <div class="filter-group">
+                    <label><i class="fas fa-sliders-h"></i> Weitere Filter</label>
+                    <div class="filter-chips">
+                        <button class="filter-chip" data-filter="available">
+                            <i class="fas fa-check-circle"></i> Verfügbar
+                        </button>
+                        <button class="filter-chip" data-filter="24h">
+                            <i class="fas fa-clock"></i> 24h
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Operator Filter -->
+                <div class="filter-group">
+                    <label><i class="fas fa-building"></i> Betreiber (CPO)</label>
+                    <div class="operator-filter">
+                        <div class="operator-filter-header">
+                            <button class="operator-filter-btn" id="includeMode">
+                                <i class="fas fa-plus-circle"></i> Nur diese
+                            </button>
+                            <button class="operator-filter-btn" id="excludeMode">
+                                <i class="fas fa-minus-circle"></i> Ausschließen
+                            </button>
+                            <button class="operator-filter-btn" id="clearOperators">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="operator-tags" id="operatorTags">
+                            <span class="operator-tag" style="color: #666; cursor: default;">Lade Betreiber...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Stations List -->
+            <div class="stations-list" id="list-tab">
+                <div class="list-header-fixed">
+                    <span id="listCount">0 Stationen</span>
+                    <select class="sort-select" id="sortSelect">
+                        <option value="price-asc">Preis ↑</option>
+                        <option value="price-desc">Preis ↓</option>
+                        <option value="cpo-asc">Betreiber A-Z</option>
+                        <option value="cpo-desc">Betreiber Z-A</option>
+                    </select>
+                </div>
+                <div class="list-scroll-container">
+                    <div class="loading" id="list-loading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Lade Stationen...</p>
+                    </div>
+                    <div id="stations-container"></div>
+                </div>
+            </div>
+            </div><!-- End sidebar-content -->
+        </div>
+        
+        <!-- Map Container -->
+        <div class="map-container">
+            <div id="map"></div>
+            
+            <!-- Loading Overlay -->
+            <div class="loading-overlay" id="loadingOverlay">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Lade Preise...</span>
+                <span class="loading-progress" id="loadingProgress">0/0</span>
+            </div>
+            
+            <!-- Search Box -->
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Adresse suchen...">
+                <button id="searchBtn"><i class="fas fa-search"></i></button>
+            </div>
+            
+            <!-- Stats Bar -->
+            <div class="stats-bar">
+                <div class="stat">
+                    <i class="fas fa-charging-station"></i>
+                    <span class="stat-value" id="stationCount">0</span>
+                    <span>Stationen</span>
+                </div>
+                <div class="stat">
+                    <i class="fas fa-euro-sign"></i>
+                    <span class="stat-value" id="avgPrice">-</span>
+                    <span>Ø Preis</span>
+                </div>
+                <div class="stat">
+                    <i class="fas fa-arrow-down"></i>
+                    <span class="stat-value" id="minPrice">-</span>
+                    <span>Min</span>
+                </div>
+            </div>
+            
+            <!-- Legend -->
+            <div class="map-legend">
+                <div class="legend-title">Preis/kWh (EUR)</div>
+                <div class="legend-item">
+                    <div class="legend-color cheap"></div>
+                    <span>&lt; 0,45€</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color moderate"></div>
+                    <span>0,45€ - 0,60€</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color expensive"></div>
+                    <span>&gt; 0,60€</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color foreign"></div>
+                    <span>Andere Währung</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    
+    <script>
+        // State
+        let map;
+        let markersLayer;
+        let stations = [];
+        let operators = {};  // CPO ID -> name mapping
+        let poolDetails = {}; // Pool ID -> {cpo_name, location_name, street, city}
+        let currentTariff = 'HYUNDAI_FLEX';
+        let selectedPowerTypes = new Set(['AC', 'DC']); // Multi-select: AC and DC
+        let minChargePower = 0;
+        let maxPriceFilter = 1.50;
+        let includedOperators = new Set();
+        let excludedOperators = new Set();
+        let operatorFilterMode = null;  // 'include' or 'exclude'
+        let currentSortMode = 'price-asc';
+        let currentMarket = 'de';
+        let activeFilters = {
+            available: false,
+            '24h': false
+        };
+        let priceCache = {};
+        let loadingTotal = 0;
+        let loadingDone = 0;
+        
+        // Currency symbols
+        const currencySymbols = {
+            'EUR': '€',
+            'USD': '$',
+            'GBP': '£',
+            'CHF': 'CHF',
+            'PLN': 'zł',
+            'CZK': 'Kč',
+            'SEK': 'kr',
+            'NOK': 'kr',
+            'DKK': 'kr',
+            'HUF': 'Ft'
+        };
+        
+        // Initialize map
+        function initMap() {
+            map = L.map('map').setView([48.5665, 13.4314], 14); // Passau default
+            
+            // Dark tile layer
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(map);
+            
+            // Marker cluster group
+            markersLayer = L.markerClusterGroup({
+                chunkedLoading: true,
+                maxClusterRadius: 50,
+                iconCreateFunction: function(cluster) {
+                    const count = cluster.getChildCount();
+                    return L.divIcon({
+                        html: `<div class="cluster-marker">${count}</div>`,
+                        className: 'custom-cluster',
+                        iconSize: [50, 30]
+                    });
+                }
+            });
+            map.addLayer(markersLayer);
+            
+            // Load stations on map move
+            map.on('moveend', debounce(loadStations, 500));
+            map.on('zoomend', debounce(loadStations, 500));
+            
+            // Initial load
+            loadStations();
+        }
+        
+        // Debounce function
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        // Show/hide loading overlay
+        function showLoading(show, current = 0, total = 0) {
+            const overlay = document.getElementById('loadingOverlay');
+            const progress = document.getElementById('loadingProgress');
+            if (show) {
+                overlay.classList.add('visible');
+                progress.textContent = `${current}/${total}`;
+            } else {
+                overlay.classList.remove('visible');
+            }
+        }
+        
+        // Detect market from coordinates
+        function detectMarket(lat, lng) {
+            if (lat >= 47 && lat <= 55 && lng >= 5.5 && lng <= 15) return 'de';
+            if (lat >= 46 && lat <= 49 && lng >= 5.5 && lng <= 10.5) return 'ch';
+            if (lat >= 46.5 && lat <= 49 && lng >= 9.5 && lng <= 17) return 'at';
+            if (lat >= 49.5 && lat <= 51.5 && lng >= 2 && lng <= 6.5) return 'be';
+            if (lat >= 50.5 && lat <= 53.5 && lng >= 3.3 && lng <= 7.2) return 'nl';
+            if (lat >= 41 && lat <= 51 && lng >= -5.5 && lng <= 9.5) return 'fr';
+            if (lat >= 36 && lat <= 44 && lng >= -9.5 && lng <= 4) return 'es';
+            if (lat >= 36 && lat <= 47 && lng >= 6 && lng <= 19) return 'it';
+            if (lat >= 49 && lat <= 54.5 && lng >= 14 && lng <= 24) return 'pl';
+            if (lat >= 47.5 && lat <= 51 && lng >= 12 && lng <= 22.5) return 'cz';
+            if (lat >= 55 && lat <= 58 && lng >= 8 && lng <= 13) return 'dk';
+            if (lat >= 55 && lat <= 69 && lng >= 4.5 && lng <= 31) return 'no';
+            if (lat >= 55 && lat <= 69 && lng >= 11 && lng <= 24) return 'se';
+            if (lat >= 50 && lat <= 56 && lng >= -11 && lng <= 2) return 'gb';
+            return 'de';
+        }
+        
+        // Load stations for current map bounds
+        async function loadStations() {
+            const bounds = map.getBounds();
+            const zoom = map.getZoom();
+            const center = map.getCenter();
+            
+            // Detect market based on map center
+            currentMarket = detectMarket(center.lat, center.lng);
+            
+            // Calculate precision based on zoom level
+            let precision = Math.min(10, Math.max(3, zoom - 5));
+            
+            try {
+                const response = await fetch(`/api/stations?lat_nw=${bounds.getNorth()}&lng_nw=${bounds.getWest()}&lat_se=${bounds.getSouth()}&lng_se=${bounds.getEast()}&precision=${precision}&market=${currentMarket}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    console.error('API Error:', data.error);
+                    return;
+                }
+                
+                stations = data.pools || [];
+                
+                // Extract CPO info
+                updateOperatorList();
+                
+                // Get prices for all charge points
+                await loadPrices();
+                
+                // Update map and list
+                updateMarkers();
+                updateList();
+                updateStats();
+                
+            } catch (error) {
+                console.error('Error loading stations:', error);
+            }
+        }
+        
+        // Update operator list from stations
+        function updateOperatorList() {
+            for (const station of stations) {
+                if (station.dcsTechnicalChargePointOperatorId) {
+                    const cpoId = station.dcsTechnicalChargePointOperatorId;
+                    if (!operators[cpoId]) {
+                        // Fallback name until we get real name from API
+                        const parts = cpoId.split(':');
+                        const shortId = parts[parts.length - 1].substring(0, 8);
+                        operators[cpoId] = `CPO-${shortId}`;
+                    }
+                }
+            }
+            renderOperatorTags();
+            
+            // Load pool details in background for real CPO names
+            loadPoolDetails();
+        }
+        
+        // Load pool details for real CPO names and addresses
+        async function loadPoolDetails() {
+            // Collect pool IDs we don't have details for yet
+            // Note: API returns pool ID in 'id' field, not 'dcsPoolId'
+            const poolIdsToFetch = [];
+            for (const station of stations) {
+                const poolId = station.id;  // Pool ID is in 'id' field
+                if (poolId && !poolDetails[poolId]) {
+                    poolIdsToFetch.push(poolId);
+                }
+            }
+            
+            if (poolIdsToFetch.length === 0) return;
+            
+            console.log(`Loading pool details for ${poolIdsToFetch.length} stations...`);
+            
+            try {
+                const response = await fetch('/api/pool-details', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        pool_ids: poolIdsToFetch,
+                        market: currentMarket
+                    })
+                });
+                
+                if (!response.ok) {
+                    console.error('Pool details API error:', response.status);
+                    return;
+                }
+                
+                const data = await response.json();
+                console.log(`Got pool details for ${Object.keys(data).length} stations`);
+                
+                // Store pool details and update operator names
+                for (const [poolId, details] of Object.entries(data)) {
+                    poolDetails[poolId] = details;
+                    
+                    // Find station with this pool ID to get CPO ID
+                    const station = stations.find(s => s.id === poolId);
+                    if (station && station.dcsTechnicalChargePointOperatorId && details.cpo_name) {
+                        operators[station.dcsTechnicalChargePointOperatorId] = details.cpo_name;
+                    }
+                }
+                
+                // Re-render with real names
+                renderOperatorTags();
+                updateList();
+                updateMarkers();
+                
+            } catch (error) {
+                console.error('Error loading pool details:', error);
+            }
+        }
+        
+        // Render operator tags
+        function renderOperatorTags() {
+            const container = document.getElementById('operatorTags');
+            const operatorIds = Object.keys(operators).sort((a, b) => 
+                operators[a].localeCompare(operators[b])
+            );
+            
+            if (operatorIds.length === 0) {
+                container.innerHTML = '<span class="operator-tag" style="color: #666; cursor: default;">Keine Betreiber gefunden</span>';
+                return;
+            }
+            
+            container.innerHTML = operatorIds.slice(0, 20).map(id => {
+                let cls = 'operator-tag';
+                if (includedOperators.has(id)) cls += ' included';
+                if (excludedOperators.has(id)) cls += ' excluded';
+                return `<span class="${cls}" data-cpo="${id}">${operators[id]}</span>`;
+            }).join('');
+            
+            if (operatorIds.length > 20) {
+                container.innerHTML += `<span class="operator-tag" style="color: #666; cursor: default;">+${operatorIds.length - 20} weitere</span>`;
+            }
+            
+            // Add click handlers
+            container.querySelectorAll('.operator-tag[data-cpo]').forEach(tag => {
+                tag.addEventListener('click', () => {
+                    const cpoId = tag.dataset.cpo;
+                    toggleOperator(cpoId);
+                });
+            });
+        }
+        
+        // Toggle operator in filter
+        function toggleOperator(cpoId) {
+            if (operatorFilterMode === 'include') {
+                excludedOperators.delete(cpoId);
+                if (includedOperators.has(cpoId)) {
+                    includedOperators.delete(cpoId);
+                } else {
+                    includedOperators.add(cpoId);
+                }
+            } else if (operatorFilterMode === 'exclude') {
+                includedOperators.delete(cpoId);
+                if (excludedOperators.has(cpoId)) {
+                    excludedOperators.delete(cpoId);
+                } else {
+                    excludedOperators.add(cpoId);
+                }
+            }
+            renderOperatorTags();
+            updateMarkers();
+            updateList();
+            updateStats();
+        }
+        
+        // Load prices for stations (for all selected power types)
+        async function loadPrices() {
+            const chargePoints = [];
+            const cpToStation = {};
+            
+            for (const station of stations) {
+                if (station.chargePoints && station.chargePoints.length > 0) {
+                    const cpId = station.chargePoints[0].id;
+                    chargePoints.push(cpId);
+                    cpToStation[cpId] = station;
+                    // Initialize prices object for both AC and DC
+                    station.prices = station.prices || {};
+                }
+            }
+            
+            if (chargePoints.length === 0) return;
+            
+            // Load prices for each selected power type
+            const powerTypesToLoad = Array.from(selectedPowerTypes);
+            
+            for (const powerType of powerTypesToLoad) {
+                const power = powerType === 'DC' ? 50 : 11;
+                
+                // Check cache first and only request uncached
+                const uncached = chargePoints.filter(cp => {
+                    const cacheKey = `${cp}_${currentTariff}_${powerType}_${currentMarket}`;
+                    if (priceCache[cacheKey]) {
+                        // Use cached price
+                        const station = cpToStation[cp];
+                        if (station) {
+                            station.prices[powerType] = priceCache[cacheKey];
+                        }
+                        return false;
+                    }
+                    return true;
+                });
+                
+                if (uncached.length === 0) continue;
+                
+                // Limit to first 50 to avoid rate limiting
+                const toFetch = uncached.slice(0, 50);
+                loadingTotal = toFetch.length;
+                loadingDone = 0;
+                showLoading(true, 0, loadingTotal);
+                
+                // Split into small batches of 5 with delay between
+                const batchSize = 5;
+                for (let i = 0; i < toFetch.length; i += batchSize) {
+                    const batch = toFetch.slice(i, i + batchSize);
+                    
+                    try {
+                        const response = await fetch('/api/prices', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                charge_points: batch,
+                                tariff_id: currentTariff,
+                                power_type: powerType,
+                                power: power,
+                                market: currentMarket
+                            })
+                        });
+                        
+                        const prices = await response.json();
+                        
+                        if (Array.isArray(prices)) {
+                            for (const price of prices) {
+                                if (price.charge_point) {
+                                    const cacheKey = `${price.charge_point}_${currentTariff}_${powerType}_${currentMarket}`;
+                                    priceCache[cacheKey] = price;
+                                    
+                                    // Attach price to station
+                                    const station = cpToStation[price.charge_point];
+                                    if (station) {
+                                        station.prices[powerType] = price;
+                                    }
+                                }
+                            }
+                        }
+                        
+                        loadingDone += batch.length;
+                        showLoading(true, loadingDone, loadingTotal);
+                        
+                        // Update UI progressively
+                        updateMarkers();
+                        updateList();
+                        updateStats();
+                        
+                        // Small delay between batches to avoid rate limiting
+                        if (i + batchSize < toFetch.length) {
+                            await new Promise(resolve => setTimeout(resolve, 200));
+                        }
+                    } catch (error) {
+                        console.error('Error loading prices:', error);
+                    }
+                }
+            }
+            
+            showLoading(false);
+        }
+        
+        // Get price class for styling
+        function getPriceClass(price, currency) {
+            if (currency !== 'EUR') return 'foreign';
+            if (price < 0.45) return 'cheap';
+            if (price < 0.60) return 'moderate';
+            return 'expensive';
+        }
+        
+        // Format price with currency
+        function formatPrice(price, currency = 'EUR') {
+            const symbol = currencySymbols[currency] || currency;
+            return price.toFixed(2).replace('.', ',') + symbol;
+        }
+        
+        // Check if station passes filters
+        function stationPassesFilters(station) {
+            // Must have at least one price for selected power types
+            if (!station.prices) return false;
+            
+            const hasValidPrice = Array.from(selectedPowerTypes).some(pt => {
+                const price = station.prices[pt];
+                return price && price.energy_price !== null && price.energy_price !== undefined;
+            });
+            if (!hasValidPrice) return false;
+            
+            // Check price filter for at least one power type
+            const passesPrice = Array.from(selectedPowerTypes).some(pt => {
+                const price = station.prices[pt];
+                if (!price || price.energy_price === null) return false;
+                const currency = price.currency || 'EUR';
+                // Only apply EUR price filter to EUR prices
+                if (currency === 'EUR' && price.energy_price > maxPriceFilter) return false;
+                return true;
+            });
+            if (!passesPrice) return false;
+            
+            // Operator filters
+            const cpoId = station.dcsTechnicalChargePointOperatorId;
+            if (includedOperators.size > 0 && !includedOperators.has(cpoId)) return false;
+            if (excludedOperators.has(cpoId)) return false;
+            
+            // Power filter - check if station has sufficient charging power
+            if (minChargePower > 0) {
+                const poolId = station.id;
+                const poolInfo = poolDetails[poolId];
+                if (poolInfo && poolInfo.max_power) {
+                    if (poolInfo.max_power < minChargePower) return false;
+                }
+            }
+            
+            // Filter out CHAdeMO-only stations (check plug types)
+            const poolId = station.id;
+            const poolInfo = poolDetails[poolId];
+            if (poolInfo && poolInfo.plug_types) {
+                const hasNonChademo = poolInfo.plug_types.some(pt => {
+                    const normalized = pt.toUpperCase().replace(/[\s-_]/g, '');
+                    return normalized !== 'CHADEMO';
+                });
+                // If station ONLY has CHAdeMO, filter it out
+                if (!hasNonChademo) return false;
+            }
+            
+            return true;
+        }
+        
+        // Check if station supports a specific power type based on plug types
+        function stationSupportsPowerType(station, powerType) {
+            const poolId = station.id;
+            const poolInfo = poolDetails[poolId];
+            
+            // If we don't have plug info yet, assume it supports the power type
+            if (!poolInfo || !poolInfo.plug_types || poolInfo.plug_types.length === 0) {
+                return true;
+            }
+            
+            const plugTypes = poolInfo.plug_types.map(pt => pt.toUpperCase().replace(/[\s-_]/g, ''));
+            
+            if (powerType === 'AC') {
+                // AC = Typ 2
+                return plugTypes.some(pt => pt === 'TYP2' || pt === 'TYPE2');
+            } else if (powerType === 'DC') {
+                // DC = CCS (not CHAdeMO)
+                return plugTypes.some(pt => pt === 'CCS' || pt === 'CCS2' || pt === 'COMBO2');
+            }
+            
+            return false;
+        }
+        
+        // Get display prices for a station (only for power types the station actually supports)
+        function getDisplayPrices(station) {
+            const prices = [];
+            for (const pt of selectedPowerTypes) {
+                // Only include price if station actually supports this power type
+                if (!stationSupportsPowerType(station, pt)) continue;
+                
+                const price = station.prices[pt];
+                if (price && price.energy_price !== null && price.energy_price !== undefined) {
+                    prices.push({ type: pt, ...price });
+                }
+            }
+            // Sort by price ascending
+            prices.sort((a, b) => a.energy_price - b.energy_price);
+            return prices;
+        }
+        
+        // Update markers on map
+        function updateMarkers() {
+            markersLayer.clearLayers();
+            
+            for (const station of stations) {
+                if (!stationPassesFilters(station)) continue;
+                
+                const displayPrices = getDisplayPrices(station);
+                if (displayPrices.length === 0) continue;
+                
+                const cpoId = station.dcsTechnicalChargePointOperatorId;
+                const cpoName = operators[cpoId] || 'Unbekannt';
+                
+                // Build marker HTML showing both AC and DC if available
+                let markerHtml = '';
+                if (displayPrices.length === 1) {
+                    const p = displayPrices[0];
+                    const priceClass = getPriceClass(p.energy_price, p.currency || 'EUR');
+                    markerHtml = `<div class="price-marker ${priceClass}">${p.type}: ${formatPrice(p.energy_price, p.currency || 'EUR')}</div>`;
+                } else {
+                    // Show both prices stacked
+                    const acPrice = displayPrices.find(p => p.type === 'AC');
+                    const dcPrice = displayPrices.find(p => p.type === 'DC');
+                    let lines = [];
+                    if (acPrice) {
+                        lines.push(`AC: ${formatPrice(acPrice.energy_price, acPrice.currency || 'EUR')}`);
+                    }
+                    if (dcPrice) {
+                        lines.push(`DC: ${formatPrice(dcPrice.energy_price, dcPrice.currency || 'EUR')}`);
+                    }
+                    // Use lowest price for color
+                    const lowest = displayPrices[0];
+                    const priceClass = getPriceClass(lowest.energy_price, lowest.currency || 'EUR');
+                    markerHtml = `<div class="price-marker dual ${priceClass}">${lines.join('<br>')}</div>`;
+                }
+                
+                const icon = L.divIcon({
+                    html: markerHtml,
+                    className: 'custom-price-marker',
+                    iconSize: [70, displayPrices.length > 1 ? 36 : 24],
+                    iconAnchor: [35, displayPrices.length > 1 ? 18 : 12]
+                });
+                
+                const marker = L.marker([station.latitude, station.longitude], { icon });
+                
+                // Build popup price rows for all available prices
+                let priceRows = '';
+                for (const p of displayPrices) {
+                    const currency = p.currency || 'EUR';
+                    priceRows += `
+                        <div class="popup-price-row">
+                            <span class="popup-price-label">${p.type} Energie:</span>
+                            <span class="popup-price-value">${formatPrice(p.energy_price, currency)}/kWh</span>
+                        </div>
+                    `;
+                    if (p.session_fee) {
+                        priceRows += `
+                            <div class="popup-price-row">
+                                <span class="popup-price-label">${p.type} Startgebühr:</span>
+                                <span class="popup-price-value">${formatPrice(p.session_fee, currency)}</span>
+                            </div>
+                        `;
+                    }
+                }
+                
+                // Popup content
+                const popupContent = `
+                    <div class="popup-content">
+                        <div class="popup-title">
+                            <i class="fas fa-charging-station"></i> ${cpoName}
+                        </div>
+                        <div class="popup-address">
+                            <i class="fas fa-map-marker-alt"></i> ${station.latitude.toFixed(5)}, ${station.longitude.toFixed(5)}
+                        </div>
+                        <div class="popup-prices">
+                            ${priceRows}
+                        </div>
+                        <div class="popup-operator">
+                            <i class="fas fa-plug"></i> ${station.chargePointCount} Ladepunkte
+                        </div>
+                    </div>
+                `;
+                
+                // FIX: popup stays open on click
+                marker.bindPopup(popupContent, {
+                    closeOnClick: false,
+                    autoClose: false
+                });
+                marker.stationData = station;
+                
+                markersLayer.addLayer(marker);
+            }
+        }
+        
+        // Update stations list
+        function updateList() {
+            const container = document.getElementById('stations-container');
+            const loading = document.getElementById('list-loading');
+            const listCount = document.getElementById('listCount');
+            
+            loading.style.display = 'none';
+            
+            // Filter stations
+            let filteredStations = stations.filter(stationPassesFilters);
+            
+            // Sort stations
+            filteredStations.sort((a, b) => {
+                const cpoA = operators[a.dcsTechnicalChargePointOperatorId] || 'ZZZ';
+                const cpoB = operators[b.dcsTechnicalChargePointOperatorId] || 'ZZZ';
+                
+                // Get lowest price for sorting
+                const pricesA = getDisplayPrices(a);
+                const pricesB = getDisplayPrices(b);
+                const lowestA = pricesA.length > 0 ? pricesA[0].energy_price : 999;
+                const lowestB = pricesB.length > 0 ? pricesB[0].energy_price : 999;
+                
+                switch (currentSortMode) {
+                    case 'price-asc':
+                        return lowestA - lowestB;
+                    case 'price-desc':
+                        return lowestB - lowestA;
+                    case 'cpo-asc':
+                        return cpoA.localeCompare(cpoB);
+                    case 'cpo-desc':
+                        return cpoB.localeCompare(cpoA);
+                    default:
+                        return lowestA - lowestB;
+                }
+            });
+            
+            listCount.textContent = `${filteredStations.length} Stationen`;
+            
+            if (filteredStations.length === 0) {
+                container.innerHTML = `
+                    <div class="loading">
+                        <i class="fas fa-search"></i>
+                        <p>Keine Stationen gefunden</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = filteredStations.map(station => {
+                const displayPrices = getDisplayPrices(station);
+                const cpoId = station.dcsTechnicalChargePointOperatorId;
+                const cpoName = operators[cpoId] || 'Unbekannt';
+                
+                // Get pool details for address (pool ID is in 'id' field)
+                const details = poolDetails[station.id] || {};
+                const locationName = details.location_name || 'Ladestation';
+                const street = details.street;
+                const city = details.city;
+                const zipCode = details.zip_code;
+                const maxPower = details.max_power || 0;
+                
+                // Build address string
+                let addressParts = [];
+                if (street) addressParts.push(street);
+                if (zipCode && city) {
+                    addressParts.push(`${zipCode} ${city}`);
+                } else if (city) {
+                    addressParts.push(city);
+                }
+                const addressStr = addressParts.length > 0 
+                    ? addressParts.join(', ')
+                    : `${station.latitude.toFixed(5)}, ${station.longitude.toFixed(5)}`;
+                
+                // Build price badges for all available power types
+                const priceBadges = displayPrices.map(p => {
+                    const priceClass = getPriceClass(p.energy_price, p.currency || 'EUR');
+                    return `<div class="station-price ${priceClass}" style="font-size: 0.8em; padding: 4px 10px;">${p.type}: ${formatPrice(p.energy_price, p.currency || 'EUR')}</div>`;
+                }).join('');
+                
+                // Session fees info
+                const sessionFees = displayPrices.filter(p => p.session_fee).map(p => 
+                    `+${formatPrice(p.session_fee, p.currency || 'EUR')} ${p.type}`
+                ).join(', ');
+                
+                return `
+                    <div class="station-card" data-lat="${station.latitude}" data-lng="${station.longitude}">
+                        <div class="station-header">
+                            <div class="station-info">
+                                <div class="station-name">${locationName}</div>
+                                <div class="station-cpo">${cpoName}</div>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-end;">
+                                ${priceBadges}
+                            </div>
+                        </div>
+                        <div class="station-address">
+                            <i class="fas fa-map-marker-alt"></i>
+                            ${addressStr}
+                        </div>
+                        <div class="station-details">
+                            <span><i class="fas fa-plug"></i> ${station.chargePointCount} Ladepunkte</span>
+                            ${maxPower > 0 ? `<span><i class="fas fa-bolt"></i> ${maxPower} kW</span>` : ''}
+                            ${sessionFees ? `<span><i class="fas fa-coins"></i> ${sessionFees}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Add click handlers
+            container.querySelectorAll('.station-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const lat = parseFloat(card.dataset.lat);
+                    const lng = parseFloat(card.dataset.lng);
+                    map.setView([lat, lng], 17);
+                    
+                    // Highlight card
+                    container.querySelectorAll('.station-card').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                });
+            });
+        }
+        
+        // Update stats
+        function updateStats() {
+            const stationsWithPrice = stations.filter(stationPassesFilters);
+            
+            document.getElementById('stationCount').textContent = stationsWithPrice.length;
+            
+            // Collect all EUR prices from all power types
+            const allEurPrices = [];
+            for (const s of stationsWithPrice) {
+                const displayPrices = getDisplayPrices(s);
+                for (const p of displayPrices) {
+                    if ((p.currency || 'EUR') === 'EUR') {
+                        allEurPrices.push(p.energy_price);
+                    }
+                }
+            }
+            
+            if (allEurPrices.length > 0) {
+                const avg = allEurPrices.reduce((a, b) => a + b, 0) / allEurPrices.length;
+                const min = Math.min(...allEurPrices);
+                
+                document.getElementById('avgPrice').textContent = formatPrice(avg);
+                document.getElementById('minPrice').textContent = formatPrice(min);
+            } else {
+                document.getElementById('avgPrice').textContent = '-';
+                document.getElementById('minPrice').textContent = '-';
+            }
+        }
+        
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            initMap();
+            
+            // Tariff toggle
+            document.querySelectorAll('.tariff-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.tariff-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentTariff = btn.dataset.tariff;
+                    priceCache = {}; // Clear cache
+                    loadStations();
+                });
+            });
+            
+            // Power type toggle (multi-select)
+            document.querySelectorAll('.power-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const powerType = btn.dataset.power;
+                    
+                    // Toggle the selection
+                    if (btn.classList.contains('active')) {
+                        // Don't allow deselecting if it's the only one selected
+                        if (selectedPowerTypes.size > 1) {
+                            btn.classList.remove('active');
+                            selectedPowerTypes.delete(powerType);
+                        }
+                    } else {
+                        btn.classList.add('active');
+                        selectedPowerTypes.add(powerType);
+                    }
+                    
+                    loadStations();
+                });
+            });
+            
+            // Max price slider
+            const priceSlider = document.getElementById('maxPrice');
+            const priceValue = document.getElementById('maxPriceValue');
+            
+            priceSlider.addEventListener('input', () => {
+                maxPriceFilter = parseFloat(priceSlider.value);
+                priceValue.textContent = formatPrice(maxPriceFilter);
+            });
+            
+            priceSlider.addEventListener('change', () => {
+                updateMarkers();
+                updateList();
+                updateStats();
+            });
+            
+            // Min power slider
+            const powerSlider = document.getElementById('minPower');
+            const powerValue = document.getElementById('minPowerValue');
+            
+            powerSlider.addEventListener('input', () => {
+                minChargePower = parseInt(powerSlider.value);
+                if (minChargePower === 0) {
+                    powerValue.textContent = 'Alle';
+                } else {
+                    powerValue.textContent = `≥ ${minChargePower} kW`;
+                }
+            });
+            
+            powerSlider.addEventListener('change', () => {
+                updateMarkers();
+                updateList();
+                updateStats();
+            });
+            
+            // Operator filter mode buttons
+            document.getElementById('includeMode').addEventListener('click', () => {
+                const btn = document.getElementById('includeMode');
+                if (operatorFilterMode === 'include') {
+                    operatorFilterMode = null;
+                    btn.classList.remove('active-include');
+                } else {
+                    operatorFilterMode = 'include';
+                    btn.classList.add('active-include');
+                    document.getElementById('excludeMode').classList.remove('active-exclude');
+                }
+            });
+            
+            document.getElementById('excludeMode').addEventListener('click', () => {
+                const btn = document.getElementById('excludeMode');
+                if (operatorFilterMode === 'exclude') {
+                    operatorFilterMode = null;
+                    btn.classList.remove('active-exclude');
+                } else {
+                    operatorFilterMode = 'exclude';
+                    btn.classList.add('active-exclude');
+                    document.getElementById('includeMode').classList.remove('active-include');
+                }
+            });
+            
+            document.getElementById('clearOperators').addEventListener('click', () => {
+                includedOperators.clear();
+                excludedOperators.clear();
+                operatorFilterMode = null;
+                document.getElementById('includeMode').classList.remove('active-include');
+                document.getElementById('excludeMode').classList.remove('active-exclude');
+                renderOperatorTags();
+                updateMarkers();
+                updateList();
+                updateStats();
+            });
+            
+            // Sort select
+            document.getElementById('sortSelect').addEventListener('change', (e) => {
+                currentSortMode = e.target.value;
+                updateList();
+            });
+            
+            // Filter chips (Verfügbar, 24h)
+            document.querySelectorAll('.filter-chip[data-filter]').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    chip.classList.toggle('active');
+                    const filter = chip.dataset.filter;
+                    if (filter) {
+                        activeFilters[filter] = chip.classList.contains('active');
+                    }
+                    loadStations();
+                });
+            });
+            
+            // Search - removed country restriction for international support
+            const searchInput = document.getElementById('searchInput');
+            const searchBtn = document.getElementById('searchBtn');
+            
+            const doSearch = async () => {
+                const query = searchInput.value.trim();
+                if (!query) return;
+                
+                try {
+                    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+                    const results = await response.json();
+                    
+                    if (results.length > 0) {
+                        const result = results[0];
+                        map.setView([parseFloat(result.lat), parseFloat(result.lon)], 14);
+                    }
+                } catch (error) {
+                    console.error('Search error:', error);
+                }
+            };
+            
+            searchBtn.addEventListener('click', doSearch);
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') doSearch();
+            });
+        });
+    </script>
+</body>
+</html>

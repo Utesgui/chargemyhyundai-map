@@ -1,0 +1,62 @@
+# Ignore Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+!README.md
+LICENSE
+
+# Test files
+tests/
+test_*.py
+*_test.py
+pytest.ini
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Development files
+*.log
+*.tmp
+.env
+.env.local
+*.bak
+
+# Docker compose (not needed in image)
+docker-compose*.yml
+
+# GitHub workflows (not needed in image)
+.github/
+
+# Sample/test data
+*_sample.json
+pool_response.json
+station_sample.json
+
+# API documentation (not needed in runtime)
+*_API.md
+discover_tariffs.py

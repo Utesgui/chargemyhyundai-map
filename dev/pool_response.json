@@ -1,0 +1,395 @@
+[
+  {
+    "poolPaymentMethods": [
+      "CONTRACT"
+    ],
+    "poolLocations": [
+      {
+        "type": "POI",
+        "coordinates": {
+          "latitude": 52.51645278930664,
+          "longitude": 13.393325805664062
+        },
+        "street": "Bebelplatz 2",
+        "zipCode": "10117",
+        "city": "Berlin",
+        "countryCode": "DE",
+        "poolLocationNames": [
+          {
+            "language": "en",
+            "name": "Charging station InCharge Bebelplatz 2"
+          },
+          {
+            "language": "de",
+            "name": "Ladestation InCharge Bebelplatz 2"
+          }
+        ]
+      }
+    ],
+    "poolContacts": [
+      {
+        "name": "Vattenfall InCharge AB Customer Service",
+        "phone": "+49 800 2335335"
+      }
+    ],
+    "chargingStations": [
+      {
+        "chargePoints": [
+          {
+            "connectors": [
+              {
+                "plugType": "TYP2",
+                "cableAttached": "UNKNOWN",
+                "phaseType": "AC",
+                "ampere": 16,
+                "powerLevel": 11,
+                "voltage": 400
+              }
+            ],
+            "dcsCpId": "DE:DCS:CHARGE_POINT:29172d17-a9fb-30cc-821f-6dad59133bed",
+            "incomingCpId": "DE*VAT*EKBA*23932989*2",
+            "dynamicInfoAvailable": true,
+            "isoNormedId": true
+          },
+          {
+            "connectors": [
+              {
+                "plugType": "TYP2",
+                "cableAttached": "UNKNOWN",
+                "phaseType": "AC",
+                "ampere": 16,
+                "powerLevel": 11,
+                "voltage": 400
+              }
+            ],
+            "dcsCpId": "DE:DCS:CHARGE_POINT:ab0e13ac-6512-3929-a18b-067d2c550de3",
+            "incomingCpId": "DE*VAT*EKBA*29618613*2",
+            "dynamicInfoAvailable": true,
+            "isoNormedId": true
+          },
+          {
+            "connectors": [
+              {
+                "plugType": "TYP2",
+                "cableAttached": "UNKNOWN",
+                "phaseType": "AC",
+                "ampere": 16,
+                "powerLevel": 11,
+                "voltage": 400
+              }
+            ],
+            "dcsCpId": "DE:DCS:CHARGE_POINT:ae39d0c6-8602-305c-8471-3495c957d05e",
+            "incomingCpId": "DE*VAT*EKBA*29618613*5",
+            "dynamicInfoAvailable": true,
+            "isoNormedId": true
+          },
+          {
+            "connectors": [
+              {
+                "plugType": "TYP2",
+                "cableAttached": "UNKNOWN",
+                "phaseType": "AC",
+                "ampere": 16,
+                "powerLevel": 11,
+                "voltage": 400
+              }
+            ],
+            "dcsCpId": "DE:DCS:CHARGE_POINT:43909731-fab7-3a3b-8d2b-f55354ea9ac4",
+            "incomingCpId": "DE*VAT*EKBA*23932989*3",
+            "dynamicInfoAvailable": true,
+            "isoNormedId": true
+          },
+          {
+            "connectors": [
+              {
+                "plugType": "TYP2",
+                "cableAttached": "UNKNOWN",
+                "phaseType": "AC",
+                "ampere": 16,
+                "powerLevel": 11,
+                "voltage": 400
+              }
+            ],
+            "dcsCpId": "DE:DCS:CHARGE_POINT:a0f4f834-a75f-3a90-8573-9e0da8d66b72",
+            "incomingCpId": "DE*VAT*EKBA*23932989*12",
+            "dynamicInfoAvailable": true,
+            "isoNormedId": true
+          },
+          {
+            "connectors": [
+              {
+                "plugType": "TYP2",
+                "cableAttached": "UNKNOWN",
+                "phaseType": "AC",
+                "ampere": 16,
+                "powerLevel": 11,
+                "voltage": 400
+              }
+            ],
+            "dcsCpId": "DE:DCS:CHARGE_POINT:02024052-598d-3d04-922f-cc261c186cd9",
+            "incomingCpId": "DE*VAT*EKBA*23932989*5",
+            "dynamicInfoAvailable": true,
+            "isoNormedId": true
+          },
+          {
+            "connectors": [
+              {
+                "plugType": "TYP2",
+                "cableAttached": "UNKNOWN",
+                "phaseType": "AC",
+                "ampere": 16,
+                "powerLevel": 11,
+                "voltage": 400
+              }
+            ],
+            "dcsCpId": "DE:DCS:CHARGE_POINT:7df5187e-90b9-307a-8367-78893e09d25b",
+            "incomingCpId": "DE*VAT*EKBA*23932989*11",
+            "dynamicInfoAvailable": true,
+            "isoNormedId": true
+          },
+          {
+            "connectors": [
+              {
+                "plugType": "TYP2",
+                "cableAttached": "UNKNOWN",
+                "phaseType": "AC",
+                "ampere": 16,
+                "powerLevel": 11,
+                "voltage": 400
+              }
+            ],
+            "dcsCpId": "DE:DCS:CHARGE_POINT:b16dd3c0-69c2-33eb-bd20-a3f0daa031ff",
+            "incomingCpId": "DE*VAT*EKBA*29618613*3",
+            "dynamicInfoAvailable": true,
+            "isoNormedId": true
+          },
+          {
+            "connectors": [
+              {
+                "plugType": "TYP2",
+                "cableAttached": "UNKNOWN",
+                "phaseType": "AC",
+                "ampere": 16,
+                "powerLevel": 11,
+                "voltage": 400
+              }
+            ],
+            "dcsCpId": "DE:DCS:CHARGE_POINT:ca5cc760-8d44-32d2-a0ab-32ccc5010857",
+            "incomingCpId": "DE*VAT*EKBA*23932989*7",
+            "dynamicInfoAvailable": true,
+            "isoNormedId": true
+          },
+          {
+            "connectors": [
+              {
+                "plugType": "TYP2",
+                "cableAttached": "UNKNOWN",
+                "phaseType": "AC",
+                "ampere": 16,
+                "powerLevel": 11,
+                "voltage": 400
+              }
+            ],
+            "dcsCpId": "DE:DCS:CHARGE_POINT:f3b9d0dd-8263-321d-9a23-f7913a273c44",
+            "incomingCpId": "DE*VAT*EKBA*23932989*13",
+            "dynamicInfoAvailable": true,
+            "isoNormedId": true
+          },
+          {
+            "connectors": [
+              {
+                "plugType": "TYP2",
+                "cableAttached": "UNKNOWN",
+                "phaseType": "AC",
+                "ampere": 16,
+                "powerLevel": 11,
+                "voltage": 400
+              }
+            ],
+            "dcsCpId": "DE:DCS:CHARGE_POINT:bb958718-191e-3140-834d-4a75768bbe9a",
+            "incomingCpId": "DE*VAT*EKBA*23932989*15",
+            "dynamicInfoAvailable": true,
+            "isoNormedId": true
+          },
+          {
+            "connectors": [
+              {
+                "plugType": "TYP2",
+                "cableAttached": "UNKNOWN",
+                "phaseType": "AC",
+                "ampere": 16,
+                "powerLevel": 11,
+                "voltage": 400
+              }
+            ],
+            "dcsCpId": "DE:DCS:CHARGE_POINT:00ed1077-a85f-3539-a13e-11548ebe755a",
+            "incomingCpId": "DE*VAT*EKBA*23932989*14",
+            "dynamicInfoAvailable": true,
+            "isoNormedId": true
+          },
+          {
+            "connectors": [
+              {
+                "plugType": "TYP2",
+                "cableAttached": "UNKNOWN",
+                "phaseType": "AC",
+                "ampere": 16,
+                "powerLevel": 11,
+                "voltage": 400
+              }
+            ],
+            "dcsCpId": "DE:DCS:CHARGE_POINT:0917c570-486e-30ec-a3e2-aab6997bcf53",
+            "incomingCpId": "DE*VAT*EKBA*29618613*1",
+            "dynamicInfoAvailable": true,
+            "isoNormedId": true
+          },
+          {
+            "connectors": [
+              {
+                "plugType": "TYP2",
+                "cableAttached": "UNKNOWN",
+                "phaseType": "AC",
+                "ampere": 16,
+                "powerLevel": 11,
+                "voltage": 400
+              }
+            ],
+            "dcsCpId": "DE:DCS:CHARGE_POINT:b3cd4b85-ac26-31e8-85de-c4ddc6f4a046",
+            "incomingCpId": "DE*VAT*EKBA*23932989*8",
+            "dynamicInfoAvailable": true,
+            "isoNormedId": true
+          },
+          {
+            "connectors": [
+              {
+                "plugType": "TYP2",
+                "cableAttached": "UNKNOWN",
+                "phaseType": "AC",
+                "ampere": 16,
+                "powerLevel": 11,
+                "voltage": 400
+              }
+            ],
+            "dcsCpId": "DE:DCS:CHARGE_POINT:e587b1b5-09ae-3150-bdc6-0334f3dc9eb3",
+            "incomingCpId": "DE*VAT*EKBA*23932989*4",
+            "dynamicInfoAvailable": true,
+            "isoNormedId": true
+          },
+          {
+            "connectors": [
+              {
+                "plugType": "TYP2",
+                "cableAttached": "UNKNOWN",
+                "phaseType": "AC",
+                "ampere": 16,
+                "powerLevel": 11,
+                "voltage": 400
+              }
+            ],
+            "dcsCpId": "DE:DCS:CHARGE_POINT:5edb4250-eabd-3cd3-bea6-d7aeb28a7b04",
+            "incomingCpId": "DE*VAT*EKBA*23932989*10",
+            "dynamicInfoAvailable": true,
+            "isoNormedId": true
+          },
+          {
+            "connectors": [
+              {
+                "plugType": "TYP2",
+                "cableAttached": "UNKNOWN",
+                "phaseType": "AC",
+                "ampere": 16,
+                "powerLevel": 11,
+                "voltage": 400
+              }
+            ],
+            "dcsCpId": "DE:DCS:CHARGE_POINT:d9ee66d9-18bd-3bd9-92af-3bc791a6c55c",
+            "incomingCpId": "DE*VAT*EKBA*23932989*9",
+            "dynamicInfoAvailable": true,
+            "isoNormedId": true
+          },
+          {
+            "connectors": [
+              {
+                "plugType": "TYP2",
+                "cableAttached": "UNKNOWN",
+                "phaseType": "AC",
+                "ampere": 16,
+                "powerLevel": 11,
+                "voltage": 400
+              }
+            ],
+            "dcsCpId": "DE:DCS:CHARGE_POINT:76b725aa-663c-3f42-8569-2dda902f8f61",
+            "incomingCpId": "DE*VAT*EKBA*23932989*1",
+            "dynamicInfoAvailable": true,
+            "isoNormedId": true
+          },
+          {
+            "connectors": [
+              {
+                "plugType": "TYP2",
+                "cableAttached": "UNKNOWN",
+                "phaseType": "AC",
+                "ampere": 16,
+                "powerLevel": 11,
+                "voltage": 400
+              }
+            ],
+            "dcsCpId": "DE:DCS:CHARGE_POINT:dd11d11e-b7f2-3b37-ba99-19602275f147",
+            "incomingCpId": "DE*VAT*EKBA*29618613*4",
+            "dynamicInfoAvailable": true,
+            "isoNormedId": true
+          },
+          {
+            "connectors": [
+              {
+                "plugType": "TYP2",
+                "cableAttached": "UNKNOWN",
+                "phaseType": "AC",
+                "ampere": 16,
+                "powerLevel": 11,
+                "voltage": 400
+              }
+            ],
+            "dcsCpId": "DE:DCS:CHARGE_POINT:96b82719-4153-3064-9614-4fbff8a6fb13",
+            "incomingCpId": "DE*VAT*EKBA*23932989*6",
+            "dynamicInfoAvailable": true,
+            "isoNormedId": true
+          }
+        ],
+        "dcsCsId": "DE:DCS:CHARGING_STATION:532221ff-e240-3880-a610-0c6a7463468c",
+        "chargingStationLocation": {
+          "type": "POI",
+          "coordinates": {
+            "latitude": 52.51645278930664,
+            "longitude": 13.393325805664062
+          },
+          "street": "Bebelplatz 2",
+          "zipCode": "10117",
+          "city": "Berlin",
+          "countryCode": "DE",
+          "locationNames": [
+            {
+              "language": "en",
+              "name": "Charging station InCharge Bebelplatz 2"
+            },
+            {
+              "language": "de",
+              "name": "Ladestation InCharge Bebelplatz 2"
+            }
+          ]
+        },
+        "chargingStationAuthMethods": [
+          "REMOTE",
+          "RFID"
+        ]
+      }
+    ],
+    "technicalChargePointOperatorName": "Vattenfall InCharge AB",
+    "dcsPoolId": "DE:DCS:POOL:0f02b3e8-74e6-3ad2-9bdd-56fff6a52b9d",
+    "incomingPoolId": "0dd1cb6320993cae6c680b102aafb73e",
+    "poolLocationType": "ONSTREET",
+    "access": "PUBLIC",
+    "open24h": true,
+    "preferredPartnerStatus": false
+  }
+]
