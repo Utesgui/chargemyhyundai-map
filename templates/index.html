@@ -39,6 +39,58 @@
             flex-direction: column;
             border-right: 1px solid #0f3460;
             overflow: hidden;
+            transition: width 0.3s ease, min-width 0.3s ease;
+        }
+        
+        .sidebar.collapsed {
+            width: 0;
+            min-width: 0;
+            border-right: none;
+            overflow: hidden;
+        }
+        
+        .sidebar.collapsed .sidebar-header,
+        .sidebar.collapsed .sidebar-content {
+            opacity: 0;
+            visibility: hidden;
+        }
+        
+        /* Sidebar Toggle Button (Desktop) */
+        .sidebar-toggle {
+            position: fixed;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1003;
+            width: 28px;
+            height: 60px;
+            background: linear-gradient(135deg, #002f6c 0%, #00447c 100%);
+            border: none;
+            border-radius: 0 8px 8px 0;
+            color: #00a9e0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1em;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+            transition: left 0.3s ease, background 0.2s ease;
+        }
+        
+        .sidebar-toggle:hover {
+            background: linear-gradient(135deg, #003d8c 0%, #0055a0 100%);
+        }
+        
+        .sidebar-toggle i {
+            transition: transform 0.3s ease;
+        }
+        
+        .sidebar-toggle.sidebar-open {
+            left: 700px;
+        }
+        
+        .sidebar-toggle.sidebar-open i {
+            transform: rotate(180deg);
         }
         
         .sidebar-content {
@@ -675,22 +727,25 @@
         /* Stats Bar */
         .stats-bar {
             position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
+            bottom: 20px;
+            left: 10px;
+            top: auto;
+            right: auto;
+            transform: none;
             background: rgba(22, 33, 62, 0.95);
-            padding: 10px 20px;
-            border-radius: 25px;
+            padding: 10px 15px;
+            border-radius: 10px;
             z-index: 1000;
             display: flex;
-            gap: 20px;
+            flex-direction: column;
+            gap: 6px;
             font-size: 0.85em;
         }
         
         .stat {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
         
         .stat i {
@@ -700,6 +755,11 @@
         .stat-value {
             font-weight: bold;
             color: #fff;
+        }
+        
+        .stat-label {
+            color: #8ab4d8;
+            font-size: 0.85em;
         }
         
         /* Popup */
@@ -872,6 +932,29 @@
         }
         
         /* Visually hidden class for accessibility */
+        @media (max-width: 1200px) and (min-width: 769px) {
+            /* Auto-collapse sidebar below 1200px on tablets/smaller desktops */
+            .sidebar.auto-collapsed {
+                width: 0;
+                min-width: 0;
+                border-right: none;
+            }
+            
+            .sidebar.auto-collapsed .sidebar-header,
+            .sidebar.auto-collapsed .sidebar-content {
+                opacity: 0;
+                visibility: hidden;
+            }
+            
+            .sidebar-toggle.auto-mode {
+                left: 0;
+            }
+            
+            .sidebar-toggle.auto-mode i {
+                transform: rotate(0deg);
+            }
+        }
+        
         .visually-hidden {
             position: absolute;
             width: 1px;
@@ -884,21 +967,265 @@
             border: 0;
         }
         
+        /* Mobile Panel Toggle Buttons */
+        .mobile-panel-toggles {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1002;
+            gap: 12px;
+        }
+        
+        .mobile-toggle-btn {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #00a9e0, #0077b6);
+            color: white;
+            font-size: 1.2em;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 169, 224, 0.4);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .mobile-toggle-btn:hover,
+        .mobile-toggle-btn:focus {
+            transform: scale(1.1);
+            box-shadow: 0 6px 20px rgba(0, 169, 224, 0.5);
+        }
+        
+        .mobile-toggle-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .mobile-toggle-btn.active {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+        }
+        
+        .mobile-toggle-btn.filter-toggle {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            box-shadow: 0 4px 15px rgba(46, 204, 113, 0.4);
+        }
+        
+        .mobile-toggle-btn.filter-toggle.active {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+        }
+        
+        .mobile-toggle-btn.list-toggle {
+            background: linear-gradient(135deg, #00a9e0, #0077b6);
+            box-shadow: 0 4px 15px rgba(0, 169, 224, 0.4);
+        }
+        
+        .mobile-toggle-btn.list-toggle.active {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+        }
+        
+        /* Mobile Panel Close Button */
+        .mobile-panel-close {
+            display: none;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(231, 76, 60, 0.9);
+            color: white;
+            font-size: 1em;
+            cursor: pointer;
+            z-index: 10;
+            transition: all 0.2s ease;
+        }
+        
+        .mobile-panel-close:hover {
+            background: #e74c3c;
+            transform: scale(1.1);
+        }
+        
         /* Responsive */
         @media (max-width: 768px) {
             .container {
                 flex-direction: column;
+                position: relative;
             }
             
             .sidebar {
+                position: fixed;
                 width: 100%;
-                height: 50vh;
-                order: 2;
+                height: 100vh;
+                top: 0;
+                left: 0;
+                z-index: 1001;
+                transform: translateY(100%);
+                transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+                display: flex;
+                flex-direction: column;
+            }
+            
+            .sidebar.mobile-visible {
+                transform: translateY(0);
+            }
+            
+            .sidebar-content {
+                flex-direction: column;
+                flex: 1;
+                overflow: hidden;
+            }
+            
+            .filters-panel {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #0f3460;
+                display: none;
+                flex: 1;
+                overflow-y: auto;
+            }
+            
+            .filters-panel.mobile-active {
+                display: block;
+            }
+            
+            .stations-list {
+                width: 100%;
+                display: none;
+                flex: 1;
+                overflow: hidden;
+            }
+            
+            .stations-list.mobile-active {
+                display: flex;
             }
             
             .map-container {
-                height: 50vh;
-                order: 1;
+                width: 100%;
+                height: 100vh;
+                position: fixed;
+                top: 0;
+                left: 0;
+            }
+            
+            .mobile-panel-toggles {
+                display: flex;
+            }
+            
+            .mobile-panel-close {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            /* Adjust stats bar for mobile - bottom left, matching legend width */
+            .stats-bar {
+                min-width: 120px;
+            }
+            
+            .stats-bar .stat-value {
+                min-width: 45px;
+            }
+            
+            .stats-bar .stat-label {
+                display: inline;
+                font-size: 0.95em;
+            }
+            
+            /* Adjust search box for mobile - narrower */
+            .search-box {
+                left: 55px;
+                right: 100px;
+                width: auto;
+                top: 10px;
+            }
+            
+            /* Hide desktop sidebar toggle on mobile */
+            .sidebar-toggle {
+                display: none;
+            }
+            
+            /* Adjust legend for mobile - bottom right, matching stats width */
+            .map-legend {
+                bottom: 20px;
+                right: 10px;
+                font-size: 0.8em;
+                padding: 10px 12px;
+                border-radius: 10px;
+                min-width: 120px;
+            }
+            
+            .map-legend .legend-title {
+                margin-bottom: 6px;
+                font-size: 0.95em;
+            }
+            
+            .map-legend .legend-item {
+                margin-bottom: 3px;
+            }
+            
+            .map-legend .legend-color {
+                width: 16px;
+                height: 10px;
+            }
+            
+            /* Move toggle buttons to center bottom */
+            .mobile-panel-toggles {
+                bottom: 20px;
+            }
+            
+            /* Mobile panel header with close button */
+            .sidebar-header {
+                position: relative;
+                padding-right: 50px;
+            }
+        }
+        
+        @media (max-width: 420px) {
+            .mobile-toggle-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 1.1em;
+            }
+            
+            /* On narrow screens, move boxes above buttons with readable text */
+            .stats-bar {
+                bottom: 90px;
+                gap: 5px;
+                padding: 8px 10px;
+                font-size: 0.75em;
+                min-width: 110px;
+            }
+            
+            .stats-bar .stat-value {
+                min-width: 40px;
+            }
+            
+            .search-box {
+                left: 50px;
+                right: 90px;
+            }
+            
+            .search-box input {
+                padding: 8px 10px;
+                font-size: 0.8em;
+            }
+            
+            .map-legend {
+                bottom: 90px;
+                font-size: 0.7em;
+                padding: 8px 10px;
+                min-width: 110px;
+            }
+            
+            .mobile-panel-toggles {
+                bottom: 20px;
             }
         }
     </style>
@@ -906,10 +1233,13 @@
 <body>
     <div class="container">
         <!-- Sidebar -->
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h1><i class="fas fa-charging-station"></i> Charge Price Map</h1>
                 <p>ChargeMyHyundai Preisübersicht</p>
+                <button class="mobile-panel-close" id="mobilePanelClose" aria-label="Panel schließen" title="Schließen">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
             
             <!-- Sidebar Content: Filter + List side by side -->
@@ -1052,17 +1382,17 @@
                 <div class="stat">
                     <i class="fas fa-charging-station"></i>
                     <span class="stat-value" id="stationCount">0</span>
-                    <span>Stationen</span>
+                    <span class="stat-label">Stationen</span>
                 </div>
                 <div class="stat">
                     <i class="fas fa-euro-sign"></i>
                     <span class="stat-value" id="avgPrice">-</span>
-                    <span>Ø Preis</span>
+                    <span class="stat-label">Ø&nbsp;Preis</span>
                 </div>
                 <div class="stat">
                     <i class="fas fa-arrow-down"></i>
                     <span class="stat-value" id="minPrice">-</span>
-                    <span>Min</span>
+                    <span class="stat-label">Min</span>
                 </div>
             </div>
             
@@ -1087,6 +1417,21 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Mobile Panel Toggle Buttons -->
+        <div class="mobile-panel-toggles">
+            <button class="mobile-toggle-btn filter-toggle" id="mobileFilterToggle" aria-label="Filter anzeigen" title="Filter">
+                <i class="fas fa-filter"></i>
+            </button>
+            <button class="mobile-toggle-btn list-toggle" id="mobileListToggle" aria-label="Stationsliste anzeigen" title="Stationsliste">
+                <i class="fas fa-list"></i>
+            </button>
+        </div>
+        
+        <!-- Desktop Sidebar Toggle Button -->
+        <button class="sidebar-toggle sidebar-open" id="sidebarToggle" aria-label="Seitenleiste ein-/ausblenden" title="Seitenleiste ein-/ausblenden">
+            <i class="fas fa-chevron-left"></i>
+        </button>
     </div>
     
     <!-- Leaflet JS -->
@@ -2230,6 +2575,169 @@
             searchInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') doSearch();
             });
+            
+            // Mobile Panel Toggle Functionality
+            const sidebar = document.getElementById('sidebar');
+            const filtersPanel = document.getElementById('filters-tab');
+            const listPanel = document.getElementById('list-tab');
+            const mobileFilterToggle = document.getElementById('mobileFilterToggle');
+            const mobileListToggle = document.getElementById('mobileListToggle');
+            const mobilePanelClose = document.getElementById('mobilePanelClose');
+            
+            function closeMobilePanel() {
+                sidebar.classList.remove('mobile-visible');
+                filtersPanel.classList.remove('mobile-active');
+                listPanel.classList.remove('mobile-active');
+                mobileFilterToggle.classList.remove('active');
+                mobileListToggle.classList.remove('active');
+                // Re-enable map interactions
+                document.body.style.overflow = '';
+            }
+            
+            function openMobilePanel(panelType) {
+                // If same panel is open, close it
+                if (sidebar.classList.contains('mobile-visible')) {
+                    if (panelType === 'filter' && filtersPanel.classList.contains('mobile-active')) {
+                        closeMobilePanel();
+                        return;
+                    }
+                    if (panelType === 'list' && listPanel.classList.contains('mobile-active')) {
+                        closeMobilePanel();
+                        return;
+                    }
+                }
+                
+                // Reset panel states
+                filtersPanel.classList.remove('mobile-active');
+                listPanel.classList.remove('mobile-active');
+                mobileFilterToggle.classList.remove('active');
+                mobileListToggle.classList.remove('active');
+                
+                // Open the requested panel
+                sidebar.classList.add('mobile-visible');
+                
+                if (panelType === 'filter') {
+                    filtersPanel.classList.add('mobile-active');
+                    mobileFilterToggle.classList.add('active');
+                } else if (panelType === 'list') {
+                    listPanel.classList.add('mobile-active');
+                    mobileListToggle.classList.add('active');
+                }
+                
+                // Prevent body scroll when panel is open
+                document.body.style.overflow = 'hidden';
+            }
+            
+            mobileFilterToggle.addEventListener('click', () => {
+                openMobilePanel('filter');
+            });
+            
+            mobileListToggle.addEventListener('click', () => {
+                openMobilePanel('list');
+            });
+            
+            mobilePanelClose.addEventListener('click', closeMobilePanel);
+            
+            // Close panel with escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && sidebar.classList.contains('mobile-visible')) {
+                    closeMobilePanel();
+                }
+            });
+            
+            // Handle station card click to close panel on mobile
+            const originalUpdateList = updateList;
+            updateList = function() {
+                originalUpdateList();
+                // Add mobile close behavior to station cards
+                if (window.innerWidth <= 768) {
+                    document.querySelectorAll('.station-card').forEach(card => {
+                        card.addEventListener('click', () => {
+                            // Small delay to allow map navigation
+                            setTimeout(closeMobilePanel, 100);
+                        });
+                    });
+                }
+            };
+            
+            // Desktop Sidebar Toggle Functionality
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            let sidebarCollapsed = false;
+            let userManuallyToggled = false;
+            
+            function collapseSidebar() {
+                sidebar.classList.add('collapsed');
+                sidebarToggle.classList.remove('sidebar-open');
+                sidebarCollapsed = true;
+                // Invalidate map size after transition
+                setTimeout(() => {
+                    if (map) map.invalidateSize();
+                }, 350);
+            }
+            
+            function expandSidebar() {
+                sidebar.classList.remove('collapsed');
+                sidebarToggle.classList.add('sidebar-open');
+                sidebarCollapsed = false;
+                // Invalidate map size after transition
+                setTimeout(() => {
+                    if (map) map.invalidateSize();
+                }, 350);
+            }
+            
+            function toggleSidebar() {
+                userManuallyToggled = true;
+                if (sidebarCollapsed) {
+                    expandSidebar();
+                } else {
+                    collapseSidebar();
+                }
+            }
+            
+            sidebarToggle.addEventListener('click', toggleSidebar);
+            
+            // Auto-collapse/expand based on window width
+            function handleSidebarAutoCollapse() {
+                const width = window.innerWidth;
+                
+                // On mobile (768px or below), ensure sidebar is not in desktop-collapsed state
+                // to prevent hybrid state bugs with mobile toggles
+                if (width <= 768) {
+                    sidebar.classList.remove('collapsed');
+                    sidebarToggle.classList.add('sidebar-open');
+                    sidebarCollapsed = false;
+                    return;
+                }
+                
+                // If user manually toggled, respect their choice
+                if (userManuallyToggled) {
+                    return;
+                }
+                
+                // Auto-collapse below 1200px, auto-expand above
+                if (width < 1200 && !sidebarCollapsed) {
+                    collapseSidebar();
+                } else if (width >= 1200 && sidebarCollapsed) {
+                    expandSidebar();
+                }
+            }
+            
+            // Reset manual toggle flag when crossing the 1200px threshold significantly
+            let lastWidth = window.innerWidth;
+            window.addEventListener('resize', () => {
+                const currentWidth = window.innerWidth;
+                
+                // Reset manual toggle if user resizes significantly
+                if ((lastWidth < 1200 && currentWidth >= 1200) || (lastWidth >= 1200 && currentWidth < 1200)) {
+                    userManuallyToggled = false;
+                }
+                lastWidth = currentWidth;
+                
+                handleSidebarAutoCollapse();
+            });
+            
+            // Initial auto-collapse check
+            handleSidebarAutoCollapse();
         });
     </script>
 </body>
