@@ -39,7 +39,18 @@
             flex-direction: column;
             border-right: 1px solid #0f3460;
             overflow: hidden;
+            /* No transition by default - prevents flickering during breakpoint change */
+            transition: none;
+        }
+        
+        /* Enable transitions only when sidebar is being actively toggled */
+        .sidebar.transitioning {
             transition: width 0.3s ease, min-width 0.3s ease;
+        }
+        
+        /* Disable transitions during responsive breakpoint changes */
+        .sidebar.no-transition {
+            transition: none !important;
         }
         
         .sidebar.collapsed {
@@ -529,10 +540,10 @@
         /* Map Legend */
         .map-legend {
             position: absolute;
-            bottom: 30px;
+            bottom: 20px;
             right: 10px;
             background: rgba(22, 33, 62, 0.95);
-            padding: 15px;
+            padding: 10px 12px;
             border-radius: 10px;
             z-index: 1000;
             font-size: 0.8em;
@@ -540,7 +551,7 @@
         
         .legend-title {
             font-weight: bold;
-            margin-bottom: 10px;
+            margin-bottom: 6px;
             color: #fff;
         }
         
@@ -548,7 +559,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
             color: #aaa;
         }
         
@@ -1067,9 +1078,20 @@
                 left: 0;
                 z-index: 1001;
                 transform: translateY(100%);
-                transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+                /* No transition by default on mobile - prevents flickering during breakpoint change */
+                transition: none;
                 display: flex;
                 flex-direction: column;
+            }
+            
+            /* Only enable transition when actually visible and animating */
+            .sidebar.mobile-transitioning {
+                transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            
+            /* Disable transitions during responsive breakpoint changes */
+            .sidebar.no-transition {
+                transition: none !important;
             }
             
             .sidebar.mobile-visible {
@@ -1129,13 +1151,9 @@
                 min-width: 120px;
             }
             
-            .stats-bar .stat-value {
-                min-width: 45px;
-            }
-            
             .stats-bar .stat-label {
                 display: inline;
-                font-size: 0.95em;
+                font-size: 0.85em;
             }
             
             /* Adjust search box for mobile - narrower */
@@ -2585,13 +2603,18 @@
             const mobilePanelClose = document.getElementById('mobilePanelClose');
             
             function closeMobilePanel() {
+                // Enable transition for animation
+                sidebar.classList.add('mobile-transitioning');
                 sidebar.classList.remove('mobile-visible');
                 filtersPanel.classList.remove('mobile-active');
                 listPanel.classList.remove('mobile-active');
                 mobileFilterToggle.classList.remove('active');
                 mobileListToggle.classList.remove('active');
-                // Re-enable map interactions
+                // Re-enable map interactions and remove transitioning class after animation
                 document.body.style.overflow = '';
+                setTimeout(() => {
+                    sidebar.classList.remove('mobile-transitioning');
+                }, 400);
             }
             
             function openMobilePanel(panelType) {
@@ -2613,6 +2636,9 @@
                 mobileFilterToggle.classList.remove('active');
                 mobileListToggle.classList.remove('active');
                 
+                // Enable transition for animation
+                sidebar.classList.add('mobile-transitioning');
+                
                 // Open the requested panel
                 sidebar.classList.add('mobile-visible');
                 
@@ -2626,6 +2652,11 @@
                 
                 // Prevent body scroll when panel is open
                 document.body.style.overflow = 'hidden';
+                
+                // Remove transitioning class after animation completes
+                setTimeout(() => {
+                    sidebar.classList.remove('mobile-transitioning');
+                }, 400);
             }
             
             mobileFilterToggle.addEventListener('click', () => {
@@ -2665,60 +2696,105 @@
             let sidebarCollapsed = false;
             let userManuallyToggled = false;
             
-            function collapseSidebar() {
+            function collapseSidebar(animate = true) {
+                if (animate) {
+                    sidebar.classList.add('transitioning');
+                }
                 sidebar.classList.add('collapsed');
                 sidebarToggle.classList.remove('sidebar-open');
                 sidebarCollapsed = true;
-                // Invalidate map size after transition
+                // Invalidate map size and remove transitioning class after transition
                 setTimeout(() => {
                     if (map) map.invalidateSize();
+                    sidebar.classList.remove('transitioning');
                 }, 350);
             }
             
-            function expandSidebar() {
+            function expandSidebar(animate = true) {
+                if (animate) {
+                    sidebar.classList.add('transitioning');
+                }
                 sidebar.classList.remove('collapsed');
                 sidebarToggle.classList.add('sidebar-open');
                 sidebarCollapsed = false;
-                // Invalidate map size after transition
+                // Invalidate map size and remove transitioning class after transition
                 setTimeout(() => {
                     if (map) map.invalidateSize();
+                    sidebar.classList.remove('transitioning');
                 }, 350);
             }
             
             function toggleSidebar() {
                 userManuallyToggled = true;
                 if (sidebarCollapsed) {
-                    expandSidebar();
+                    expandSidebar(true);
                 } else {
-                    collapseSidebar();
+                    collapseSidebar(true);
                 }
             }
             
             sidebarToggle.addEventListener('click', toggleSidebar);
             
             // Auto-collapse/expand based on window width
+            let resizeTimeout = null;
+            let previousIsMobile = window.innerWidth <= 768;
+            
             function handleSidebarAutoCollapse() {
                 const width = window.innerWidth;
+                const isMobile = width <= 768;
+                const wasDesktopBefore = previousIsMobile === false;
+                const justSwitchedToDesktop = previousIsMobile && !isMobile;
                 
                 // On mobile (768px or below), ensure sidebar is not in desktop-collapsed state
                 // to prevent hybrid state bugs with mobile toggles
-                if (width <= 768) {
+                if (isMobile) {
                     sidebar.classList.remove('collapsed');
+                    sidebar.classList.remove('transitioning');
+                    sidebar.classList.remove('mobile-visible');
+                    sidebar.classList.remove('mobile-transitioning');
                     sidebarToggle.classList.add('sidebar-open');
                     sidebarCollapsed = false;
+                } else {
+                    // On desktop, remove mobile-specific classes
+                    sidebar.classList.remove('mobile-visible');
+                    sidebar.classList.remove('mobile-transitioning');
+                    filtersPanel.classList.remove('mobile-active');
+                    listPanel.classList.remove('mobile-active');
+                    mobileFilterToggle.classList.remove('active');
+                    mobileListToggle.classList.remove('active');
+                    document.body.style.overflow = '';
+                    
+                    // Immediately apply collapsed state when switching from mobile to desktop < 1200px
+                    // to prevent brief flash of expanded sidebar
+                    if (justSwitchedToDesktop && width < 1200) {
+                        sidebar.classList.add('collapsed');
+                        sidebarToggle.classList.remove('sidebar-open');
+                        sidebarCollapsed = true;
+                    }
+                }
+                
+                // Update previous state
+                previousIsMobile = isMobile;
+                
+                // If user manually toggled on desktop, respect their choice
+                if (!isMobile && userManuallyToggled) {
                     return;
                 }
                 
-                // If user manually toggled, respect their choice
-                if (userManuallyToggled) {
-                    return;
+                // Auto-collapse below 1200px, auto-expand above (desktop only)
+                if (!isMobile) {
+                    if (width < 1200 && !sidebarCollapsed) {
+                        // Collapse without animation when auto-collapsing
+                        collapseSidebar(false);
+                    } else if (width >= 1200 && sidebarCollapsed && !userManuallyToggled) {
+                        // Expand without animation when auto-expanding
+                        expandSidebar(false);
+                    }
                 }
                 
-                // Auto-collapse below 1200px, auto-expand above
-                if (width < 1200 && !sidebarCollapsed) {
-                    collapseSidebar();
-                } else if (width >= 1200 && sidebarCollapsed) {
-                    expandSidebar();
+                // Invalidate map size
+                if (map) {
+                    setTimeout(() => map.invalidateSize(), 50);
                 }
             }
             
@@ -2726,14 +2802,33 @@
             let lastWidth = window.innerWidth;
             window.addEventListener('resize', () => {
                 const currentWidth = window.innerWidth;
+                const wasMobile = lastWidth <= 768;
+                const isMobile = currentWidth <= 768;
                 
                 // Reset manual toggle if user resizes significantly
                 if ((lastWidth < 1200 && currentWidth >= 1200) || (lastWidth >= 1200 && currentWidth < 1200)) {
                     userManuallyToggled = false;
                 }
+                
+                // When crossing mobile/desktop threshold, handle immediately (no debounce)
+                // to prevent brief flash of wrong state
+                if (wasMobile !== isMobile) {
+                    lastWidth = currentWidth;
+                    if (resizeTimeout) {
+                        clearTimeout(resizeTimeout);
+                        resizeTimeout = null;
+                    }
+                    handleSidebarAutoCollapse();
+                    return;
+                }
+                
                 lastWidth = currentWidth;
                 
-                handleSidebarAutoCollapse();
+                // Debounce resize handling to avoid multiple rapid calls
+                if (resizeTimeout) {
+                    clearTimeout(resizeTimeout);
+                }
+                resizeTimeout = setTimeout(handleSidebarAutoCollapse, 10);
             });
             
             // Initial auto-collapse check
