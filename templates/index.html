@@ -948,6 +948,36 @@
             background: #0077b6;
         }
         
+        /* Mobile Filter Button (top right, next to search) */
+        .mobile-filter-btn {
+            display: none;
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            color: white;
+            font-size: 1.1em;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(46, 204, 113, 0.4);
+            transition: all 0.3s ease;
+        }
+        
+        .mobile-filter-btn:hover,
+        .mobile-filter-btn:focus {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(46, 204, 113, 0.5);
+        }
+        
+        .mobile-filter-btn.active {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            box-shadow: 0 2px 10px rgba(231, 76, 60, 0.4);
+        }
+        
         /* Visually hidden class for accessibility */
         @media (max-width: 1200px) and (min-width: 769px) {
             /* Auto-collapse sidebar below 1200px on tablets/smaller desktops */
@@ -1157,7 +1187,7 @@
             
             /* Adjust stats bar for mobile - align with buttons */
             .stats-bar {
-                bottom: calc(20px + env(safe-area-inset-bottom));
+                bottom: calc(30px + env(safe-area-inset-bottom));
                 min-width: 120px;
                 gap: 4px;
                 padding: 8px 12px;
@@ -1168,12 +1198,34 @@
                 font-size: 0.85em;
             }
             
-            /* Adjust search box for mobile - narrower */
+            /* Adjust search box for mobile - leave room for filter button */
             .search-box {
                 left: 55px;
-                right: 100px;
+                right: 65px;
                 width: auto;
                 top: 10px;
+            }
+            
+            /* Show mobile filter button */
+            .mobile-filter-btn {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            /* Hide filter button from bottom panel, show only list */
+            .mobile-panel-toggles .filter-toggle {
+                display: none;
+            }
+            
+            /* Hide list button when filter panel is open */
+            .mobile-panel-toggles.filter-active {
+                display: none;
+            }
+            
+            /* Reduce spacing between number and unit on mobile */
+            .stat {
+                gap: 3px;
             }
             
             /* Hide desktop sidebar toggle on mobile */
@@ -1183,7 +1235,7 @@
             
             /* Adjust legend for mobile - align with buttons */
             .map-legend {
-                bottom: calc(20px + env(safe-area-inset-bottom));
+                bottom: calc(30px + env(safe-area-inset-bottom));
                 right: 10px;
                 font-size: 0.8em;
                 padding: 10px 12px;
@@ -1207,7 +1259,7 @@
             
             /* Move toggle buttons to center bottom */
             .mobile-panel-toggles {
-                bottom: calc(20px + env(safe-area-inset-bottom));
+                bottom: calc(30px + env(safe-area-inset-bottom));
             }
             
             /* Mobile panel header with close button */
@@ -1226,7 +1278,7 @@
             
             /* Stats and legend boxes align with buttons */
             .stats-bar {
-                bottom: calc(10px + env(safe-area-inset-bottom));
+                bottom: calc(25px + env(safe-area-inset-bottom));
                 gap: 3px;
                 padding: 6px 10px;
                 font-size: 0.75em;
@@ -1237,9 +1289,13 @@
                 min-width: 40px;
             }
             
+            .stat {
+                gap: 2px;
+            }
+            
             .search-box {
                 left: 50px;
-                right: 90px;
+                right: 60px;
             }
             
             .search-box input {
@@ -1248,14 +1304,14 @@
             }
             
             .map-legend {
-                bottom: calc(10px + env(safe-area-inset-bottom));
+                bottom: calc(25px + env(safe-area-inset-bottom));
                 font-size: 0.7em;
                 padding: 8px 10px;
                 min-width: 110px;
             }
             
             .mobile-panel-toggles {
-                bottom: calc(10px + env(safe-area-inset-bottom));
+                bottom: calc(25px + env(safe-area-inset-bottom));
             }
         }
     </style>
@@ -1406,6 +1462,11 @@
                 <input type="text" id="searchInput" placeholder="Adresse suchen..." aria-label="Adresse suchen">
                 <button id="searchBtn" aria-label="Suchen" title="Suchen"><i class="fas fa-search" aria-hidden="true"></i></button>
             </div>
+            
+            <!-- Mobile Filter Button (top right) -->
+            <button class="mobile-filter-btn" id="mobileFilterBtn" aria-label="Filter anzeigen" title="Filter">
+                <i class="fas fa-filter"></i>
+            </button>
             
             <!-- Stats Bar -->
             <div class="stats-bar">
@@ -2611,8 +2672,10 @@
             const filtersPanel = document.getElementById('filters-tab');
             const listPanel = document.getElementById('list-tab');
             const mobileFilterToggle = document.getElementById('mobileFilterToggle');
+            const mobileFilterBtn = document.getElementById('mobileFilterBtn');
             const mobileListToggle = document.getElementById('mobileListToggle');
             const mobilePanelClose = document.getElementById('mobilePanelClose');
+            const mobilePanelToggles = document.querySelector('.mobile-panel-toggles');
             
             function closeMobilePanel() {
                 // Enable transition for animation
@@ -2622,6 +2685,8 @@
                 listPanel.classList.remove('mobile-active');
                 mobileFilterToggle.classList.remove('active');
                 mobileListToggle.classList.remove('active');
+                if (mobileFilterBtn) mobileFilterBtn.classList.remove('active');
+                if (mobilePanelToggles) mobilePanelToggles.classList.remove('filter-active');
                 // Re-enable map interactions and remove transitioning class after animation
                 document.body.style.overflow = '';
                 setTimeout(() => {
@@ -2647,6 +2712,8 @@
                 listPanel.classList.remove('mobile-active');
                 mobileFilterToggle.classList.remove('active');
                 mobileListToggle.classList.remove('active');
+                if (mobileFilterBtn) mobileFilterBtn.classList.remove('active');
+                if (mobilePanelToggles) mobilePanelToggles.classList.remove('filter-active');
                 
                 // Enable transition for animation
                 sidebar.classList.add('mobile-transitioning');
@@ -2657,6 +2724,8 @@
                 if (panelType === 'filter') {
                     filtersPanel.classList.add('mobile-active');
                     mobileFilterToggle.classList.add('active');
+                    if (mobileFilterBtn) mobileFilterBtn.classList.add('active');
+                    if (mobilePanelToggles) mobilePanelToggles.classList.add('filter-active');
                 } else if (panelType === 'list') {
                     listPanel.classList.add('mobile-active');
                     mobileListToggle.classList.add('active');
@@ -2674,6 +2743,13 @@
             mobileFilterToggle.addEventListener('click', () => {
                 openMobilePanel('filter');
             });
+            
+            // New mobile filter button (top right)
+            if (mobileFilterBtn) {
+                mobileFilterBtn.addEventListener('click', () => {
+                    openMobilePanel('filter');
+                });
+            }
             
             mobileListToggle.addEventListener('click', () => {
                 openMobilePanel('list');
@@ -2774,6 +2850,7 @@
                     listPanel.classList.remove('mobile-active');
                     mobileFilterToggle.classList.remove('active');
                     mobileListToggle.classList.remove('active');
+                    if (mobileFilterBtn) mobileFilterBtn.classList.remove('active');
                     document.body.style.overflow = '';
                     
                     // Immediately apply collapsed state when switching from mobile to desktop < 1200px
