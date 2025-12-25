@@ -242,19 +242,38 @@ def api_pool_details():
                             contact_name = contacts[0].get('name')
                             contact_phone = contacts[0].get('phone')
                         
-                        # Get max power level and plug types from all connectors
+                        # Get max power level, plug types, and charge points by AC/DC
+                        # Classification: TYP2/TYPE2 = AC, CCS/CCS2/COMBO = DC, fallback to phaseType
                         max_power = 0
                         plug_types = set()
+                        charge_points_by_type = {'AC': [], 'DC': []}
                         charging_stations = pool.get('chargingStations', [])
                         for station in charging_stations:
                             for cp in station.get('chargePoints', []):
+                                cp_id = cp.get('dcsCpId')
+                                if not cp_id:
+                                    continue
                                 for connector in cp.get('connectors', []):
                                     power_level = connector.get('powerLevel', 0)
                                     if power_level and power_level > max_power:
                                         max_power = power_level
-                                    plug_type = connector.get('plugType')
+                                    plug_type = connector.get('plugType', '')
                                     if plug_type:
                                         plug_types.add(plug_type)
+                                    
+                                    # Classify by connector type first, fallback to phaseType
+                                    plug_upper = plug_type.upper()
+                                    if 'TYP2' in plug_upper or 'TYPE2' in plug_upper or 'TYPE 2' in plug_upper:
+                                        cp_type = 'AC'
+                                    elif 'CCS' in plug_upper or 'COMBO' in plug_upper:
+                                        cp_type = 'DC'
+                                    else:
+                                        # Fallback to phaseType
+                                        cp_type = connector.get('phaseType', 'AC')
+                                    
+                                    # Add to list if not already there
+                                    if cp_id not in charge_points_by_type[cp_type]:
+                                        charge_points_by_type[cp_type].append(cp_id)
                         
                         pool_info = {
                             'pool_id': pool_id,
@@ -266,7 +285,9 @@ def api_pool_details():
                             'contact_name': contact_name,
                             'contact_phone': contact_phone,
                             'max_power': max_power,
-                            'plug_types': list(plug_types)
+                            'plug_types': list(plug_types),
+                            'charge_points_ac': charge_points_by_type.get('AC', []),
+                            'charge_points_dc': charge_points_by_type.get('DC', [])
                         }
                         
                         # Cache it

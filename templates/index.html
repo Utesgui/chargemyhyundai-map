@@ -772,6 +772,17 @@
             color: #888;
         }
         
+        .popup-price-avail {
+            font-size: 0.75em;
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .popup-price-avail i {
+            margin-right: 4px;
+        }
+        
         .popup-price-row {
             display: flex;
             justify-content: space-between;
@@ -815,36 +826,6 @@
         
         .popup-details i {
             color: #00a9e0;
-        }
-        
-        .popup-availability {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            margin-top: 8px;
-            padding: 4px 10px;
-            background: #0a2540;
-            border-radius: 6px;
-            font-size: 0.8em;
-            line-height: 1.2;
-            min-height: 24px;
-        }
-        
-        .popup-availability i {
-            color: #00a9e0;
-        }
-        
-        .popup-availability .available {
-            color: #2ecc71;
-            font-weight: bold;
-        }
-        
-        .popup-availability .occupied {
-            color: #e74c3c;
-        }
-        
-        .popup-availability .loading {
-            color: #888;
         }
         
         /* Search Box */
@@ -1738,24 +1719,33 @@
                 const acPrice = displayPrices.find(p => p.type === 'AC');
                 const dcPrice = displayPrices.find(p => p.type === 'DC');
                 
+                // Get charge points by type from pool details
+                const stationPoolDetails = poolDetails[station.id] || {};
+                const acChargePoints = stationPoolDetails.charge_points_ac || [];
+                const dcChargePoints = stationPoolDetails.charge_points_dc || [];
+                
                 let priceColumns = '';
                 if (acPrice) {
                     const currency = acPrice.currency || 'EUR';
+                    const acTotal = acChargePoints.length;
                     priceColumns += `
                         <div class="popup-price-column ac">
                             <div class="popup-price-type"><i class="fas fa-plug"></i> AC</div>
                             <div class="popup-price-main">${formatPrice(acPrice.energy_price, currency)}/kWh</div>
                             ${acPrice.session_fee ? `<div class="popup-price-fee">+ ${formatPrice(acPrice.session_fee, currency)} Start</div>` : ''}
+                            ${acTotal > 0 ? `<div class="popup-price-avail" id="avail-ac-${station.id}"><i class="fas fa-spinner fa-spin" style="color: #888"></i> <span style="color: #888">?/${acTotal}</span></div>` : ''}
                         </div>
                     `;
                 }
                 if (dcPrice) {
                     const currency = dcPrice.currency || 'EUR';
+                    const dcTotal = dcChargePoints.length;
                     priceColumns += `
                         <div class="popup-price-column dc">
                             <div class="popup-price-type"><i class="fas fa-bolt"></i> DC</div>
                             <div class="popup-price-main">${formatPrice(dcPrice.energy_price, currency)}/kWh</div>
                             ${dcPrice.session_fee ? `<div class="popup-price-fee">+ ${formatPrice(dcPrice.session_fee, currency)} Start</div>` : ''}
+                            ${dcTotal > 0 ? `<div class="popup-price-avail" id="avail-dc-${station.id}"><i class="fas fa-spinner fa-spin" style="color: #888"></i> <span style="color: #888">?/${dcTotal}</span></div>` : ''}
                         </div>
                     `;
                 }
@@ -1811,10 +1801,6 @@
                             ${popupMaxPower > 0 ? `<span><i class="fas fa-bolt"></i> bis ${popupMaxPower} kW</span>` : ''}
                             ${plugTypesDisplay ? `<span><i class="fas fa-charging-station"></i> ${plugTypesDisplay}</span>` : ''}
                         </div>
-                        <div class="popup-availability" id="availability-${station.id}">
-                            <i class="fas fa-spinner fa-spin"></i>
-                            <span>?/${station.chargePointCount} frei</span>
-                        </div>
                     </div>
                 `;
                 
@@ -1837,48 +1823,64 @@
                     // Function to load availability
                     const loadAvailability = async () => {
                         try {
-                            const chargePointIds = station.chargePoints ? station.chargePoints.map(cp => cp.id) : [];
-                            if (chargePointIds.length === 0) return;
+                            // Get charge points by type from pool details
+                            const stationDetails = poolDetails[station.id] || {};
+                            const acCpIds = stationDetails.charge_points_ac || [];
+                            const dcCpIds = stationDetails.charge_points_dc || [];
+                            const allCpIds = [...acCpIds, ...dcCpIds];
+                            
+                            if (allCpIds.length === 0) return;
                             
                             const response = await fetch('/api/status', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ charge_point_ids: chargePointIds })
+                                body: JSON.stringify({ charge_point_ids: allCpIds })
                             });
                             
                             if (!response.ok) throw new Error('Status API error');
                             
                             const statuses = await response.json();
                             
-                            // Count available charge points
-                            let available = 0;
-                            let total = chargePointIds.length;
-                            for (const cpId of chargePointIds) {
+                            // Count available AC charge points
+                            let acAvailable = 0;
+                            for (const cpId of acCpIds) {
                                 const status = statuses[cpId];
                                 if (status && status.status === 'AVAILABLE') {
-                                    available++;
+                                    acAvailable++;
                                 }
                             }
                             
-                            // Update the availability display
-                            const availElem = document.getElementById(`availability-${station.id}`);
-                            if (availElem) {
-                                const icon = available > 0 ? 'fa-check-circle' : 'fa-times-circle';
-                                const color = available > 0 ? '#2ecc71' : '#e74c3c';
-                                availElem.innerHTML = `
-                                    <i class="fas ${icon}" style="color: ${color}"></i>
-                                    <span style="color: ${color}">${available}/${total} frei</span>
-                                `;
+                            // Count available DC charge points
+                            let dcAvailable = 0;
+                            for (const cpId of dcCpIds) {
+                                const status = statuses[cpId];
+                                if (status && status.status === 'AVAILABLE') {
+                                    dcAvailable++;
+                                }
+                            }
+                            
+                            // Update AC availability display
+                            const acElem = document.getElementById(`avail-ac-${station.id}`);
+                            if (acElem && acCpIds.length > 0) {
+                                const icon = acAvailable > 0 ? 'fa-check-circle' : 'fa-times-circle';
+                                const color = acAvailable > 0 ? '#2ecc71' : '#e74c3c';
+                                acElem.innerHTML = `<i class="fas ${icon}" style="color: ${color}"></i> <span style="color: ${color}">${acAvailable}/${acCpIds.length} frei</span>`;
+                            }
+                            
+                            // Update DC availability display
+                            const dcElem = document.getElementById(`avail-dc-${station.id}`);
+                            if (dcElem && dcCpIds.length > 0) {
+                                const icon = dcAvailable > 0 ? 'fa-check-circle' : 'fa-times-circle';
+                                const color = dcAvailable > 0 ? '#2ecc71' : '#e74c3c';
+                                dcElem.innerHTML = `<i class="fas ${icon}" style="color: ${color}"></i> <span style="color: ${color}">${dcAvailable}/${dcCpIds.length} frei</span>`;
                             }
                         } catch (error) {
                             console.error('Error loading availability:', error);
-                            const availElem = document.getElementById(`availability-${station.id}`);
-                            if (availElem) {
-                                availElem.innerHTML = `
-                                    <i class="fas fa-question-circle" style="color: #888"></i>
-                                    <span style="color: #888">?/${total} frei</span>
-                                `;
-                            }
+                            // Show error state for both
+                            const acElem = document.getElementById(`avail-ac-${station.id}`);
+                            const dcElem = document.getElementById(`avail-dc-${station.id}`);
+                            if (acElem) acElem.innerHTML = `<i class="fas fa-question-circle" style="color: #888"></i> <span style="color: #888">?</span>`;
+                            if (dcElem) dcElem.innerHTML = `<i class="fas fa-question-circle" style="color: #888"></i> <span style="color: #888">?</span>`;
                         }
                     };
                     
