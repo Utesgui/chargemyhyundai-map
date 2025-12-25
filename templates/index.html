@@ -167,10 +167,12 @@
             background: #0f3460;
             outline: none;
             -webkit-appearance: none;
+            appearance: none;
         }
         
         .price-slider input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
+            appearance: none;
             width: 18px;
             height: 18px;
             border-radius: 50%;
@@ -433,12 +435,43 @@
         .cluster-marker {
             background: #0f3460;
             color: white;
-            padding: 8px 12px;
-            border-radius: 20px;
+            padding: 6px 10px;
+            border-radius: 12px;
             font-weight: bold;
-            font-size: 12px;
+            font-size: 11px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.3);
             border: 2px solid #00a9e0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            text-align: center;
+            line-height: 1.2;
+        }
+        
+        .cluster-marker.cheap {
+            background: linear-gradient(135deg, #1a5d2a, #0f3460);
+            border-color: #4caf50;
+        }
+        
+        .cluster-marker.moderate {
+            background: linear-gradient(135deg, #8b6914, #0f3460);
+            border-color: #f1c40f;
+        }
+        
+        .cluster-marker.expensive {
+            background: linear-gradient(135deg, #8b2020, #0f3460);
+            border-color: #e74c3c;
+        }
+        
+        .cluster-count {
+            font-size: 13px;
+            font-weight: bold;
+        }
+        
+        .cluster-price {
+            font-size: 10px;
+            opacity: 0.9;
         }
         
         /* Map Legend */
@@ -552,8 +585,18 @@
             display: flex;
             flex-wrap: wrap;
             gap: 4px;
-            max-height: 300px;
+            max-height: 280px;
+            overflow: hidden;
+        }
+        
+        .operator-tags.expanded {
+            max-height: none;
             overflow-y: auto;
+            max-height: 50vh;
+        }
+        
+        .operator-expand-container {
+            margin-top: 6px;
         }
         
         .operator-tag {
@@ -582,6 +625,21 @@
             background: rgba(231, 76, 60, 0.3);
             border-color: #e74c3c;
             color: #e74c3c;
+        }
+        
+        .operator-tag.placeholder {
+            color: #666;
+            cursor: default;
+        }
+        
+        .operator-tag.expand-more {
+            color: #00a9e0;
+            cursor: pointer;
+            border-color: #00a9e0;
+        }
+        
+        .operator-tag.expand-more:hover {
+            background: rgba(0, 169, 224, 0.2);
         }
         
         /* Station CPO Name */
@@ -657,7 +715,7 @@
         
         .popup-content {
             padding: 5px;
-            min-width: 200px;
+            min-width: 220px;
         }
         
         .popup-title {
@@ -674,10 +732,44 @@
         }
         
         .popup-prices {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .popup-price-column {
+            flex: 1;
             background: #0f3460;
             border-radius: 8px;
             padding: 10px;
-            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .popup-price-column.ac {
+            border-top: 3px solid #3498db;
+        }
+        
+        .popup-price-column.dc {
+            border-top: 3px solid #e67e22;
+        }
+        
+        .popup-price-type {
+            font-weight: bold;
+            font-size: 0.85em;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+        
+        .popup-price-main {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #00a9e0;
+            margin-bottom: 4px;
+        }
+        
+        .popup-price-fee {
+            font-size: 0.75em;
+            color: #888;
         }
         
         .popup-price-row {
@@ -701,6 +793,57 @@
         
         .popup-operator {
             font-size: 0.8em;
+            color: #888;
+        }
+        
+        .popup-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 0.8em;
+            color: #7a99b5;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #1a3a5c;
+        }
+        
+        .popup-details span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .popup-details i {
+            color: #00a9e0;
+        }
+        
+        .popup-availability {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+            padding: 4px 10px;
+            background: #0a2540;
+            border-radius: 6px;
+            font-size: 0.8em;
+            line-height: 1.2;
+            min-height: 24px;
+        }
+        
+        .popup-availability i {
+            color: #00a9e0;
+        }
+        
+        .popup-availability .available {
+            color: #2ecc71;
+            font-weight: bold;
+        }
+        
+        .popup-availability .occupied {
+            color: #e74c3c;
+        }
+        
+        .popup-availability .loading {
             color: #888;
         }
         
@@ -747,6 +890,19 @@
             background: #0077b6;
         }
         
+        /* Visually hidden class for accessibility */
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        
         /* Responsive */
         @media (max-width: 768px) {
             .container {
@@ -784,11 +940,11 @@
                 <div class="filter-group">
                     <label><i class="fas fa-tag"></i> Tarif</label>
                     <div class="tariff-toggle">
-                        <button class="tariff-btn active" data-tariff="HYUNDAI_FLEX">
+                        <button class="tariff-btn" data-tariff="HYUNDAI_FLEX">
                             Flex
                             <span class="price">0€/Monat</span>
                         </button>
-                        <button class="tariff-btn" data-tariff="HYUNDAI_SMART">
+                        <button class="tariff-btn active" data-tariff="HYUNDAI_SMART">
                             Smart
                             <span class="price">9,99€/Monat</span>
                         </button>
@@ -799,10 +955,10 @@
                 <div class="filter-group">
                     <label><i class="fas fa-bolt"></i> Ladetyp (Mehrfachauswahl)</label>
                     <div class="power-toggle">
-                        <button class="power-btn active" data-power="AC">
+                        <button class="power-btn" data-power="AC">
                             <i class="fas fa-plug"></i> AC (Typ 2)
                         </button>
-                        <button class="power-btn active" data-power="DC">
+                        <button class="power-btn" data-power="DC">
                             <i class="fas fa-bolt"></i> DC (CCS)
                         </button>
                     </div>
@@ -810,9 +966,9 @@
                 
                 <!-- Charge Speed Selector -->
                 <div class="filter-group">
-                    <label><i class="fas fa-tachometer-alt"></i> Min. Ladeleistung</label>
+                    <label for="minPower"><i class="fas fa-tachometer-alt"></i> Min. Ladeleistung</label>
                     <div class="price-slider">
-                        <input type="range" id="minPower" min="0" max="350" step="50" value="0">
+                        <input type="range" id="minPower" min="0" max="350" step="50" value="0" aria-label="Minimale Ladeleistung in kW">
                         <div class="price-value">
                             <span>Alle</span>
                             <span class="current" id="minPowerValue">Alle</span>
@@ -823,9 +979,9 @@
                 
                 <!-- Max Price Filter -->
                 <div class="filter-group">
-                    <label><i class="fas fa-euro-sign"></i> Max. Preis (€/kWh) - nur EUR</label>
+                    <label for="maxPrice"><i class="fas fa-euro-sign"></i> Max. Preis (€/kWh) - nur EUR</label>
                     <div class="price-slider">
-                        <input type="range" id="maxPrice" min="0.20" max="1.50" step="0.01" value="1.50">
+                        <input type="range" id="maxPrice" min="0.20" max="1.50" step="0.01" value="1.50" aria-label="Maximaler Preis pro kWh">
                         <div class="price-value">
                             <span>0,20€</span>
                             <span class="current" id="maxPriceValue">1,50€</span>
@@ -852,19 +1008,20 @@
                     <label><i class="fas fa-building"></i> Betreiber (CPO)</label>
                     <div class="operator-filter">
                         <div class="operator-filter-header">
-                            <button class="operator-filter-btn" id="includeMode">
-                                <i class="fas fa-plus-circle"></i> Nur diese
+                            <button class="operator-filter-btn active-include" id="includeMode">
+                                <i class="fas fa-plus-circle"></i> Include
                             </button>
                             <button class="operator-filter-btn" id="excludeMode">
-                                <i class="fas fa-minus-circle"></i> Ausschließen
+                                <i class="fas fa-minus-circle" aria-hidden="true"></i> Exclude
                             </button>
-                            <button class="operator-filter-btn" id="clearOperators">
-                                <i class="fas fa-times"></i>
+                            <button class="operator-filter-btn" id="clearOperators" aria-label="Filter zurücksetzen" title="Filter zurücksetzen">
+                                <i class="fas fa-times" aria-hidden="true"></i>
                             </button>
                         </div>
                         <div class="operator-tags" id="operatorTags">
-                            <span class="operator-tag" style="color: #666; cursor: default;">Lade Betreiber...</span>
+                            <span class="operator-tag placeholder">Lade Betreiber...</span>
                         </div>
+                        <div class="operator-expand-container" id="operatorExpandContainer"></div>
                     </div>
                 </div>
             </div>
@@ -873,7 +1030,8 @@
             <div class="stations-list" id="list-tab">
                 <div class="list-header-fixed">
                     <span id="listCount">0 Stationen</span>
-                    <select class="sort-select" id="sortSelect">
+                    <label for="sortSelect" class="visually-hidden">Sortierung</label>
+                    <select class="sort-select" id="sortSelect" aria-label="Sortierung">
                         <option value="price-asc">Preis ↑</option>
                         <option value="price-desc">Preis ↓</option>
                         <option value="cpo-asc">Betreiber A-Z</option>
@@ -899,13 +1057,13 @@
             <div class="loading-overlay" id="loadingOverlay">
                 <i class="fas fa-spinner fa-spin"></i>
                 <span>Lade Preise...</span>
-                <span class="loading-progress" id="loadingProgress">0/0</span>
             </div>
             
             <!-- Search Box -->
             <div class="search-box">
-                <input type="text" id="searchInput" placeholder="Adresse suchen...">
-                <button id="searchBtn"><i class="fas fa-search"></i></button>
+                <label for="searchInput" class="visually-hidden">Adresse suchen</label>
+                <input type="text" id="searchInput" placeholder="Adresse suchen..." aria-label="Adresse suchen">
+                <button id="searchBtn" aria-label="Suchen" title="Suchen"><i class="fas fa-search" aria-hidden="true"></i></button>
             </div>
             
             <!-- Stats Bar -->
@@ -961,13 +1119,18 @@
         let stations = [];
         let operators = {};  // CPO ID -> name mapping
         let poolDetails = {}; // Pool ID -> {cpo_name, location_name, street, city}
-        let currentTariff = 'HYUNDAI_FLEX';
-        let selectedPowerTypes = new Set(['AC', 'DC']); // Multi-select: AC and DC
+        let currentTariff = 'HYUNDAI_SMART';
+        let selectedPowerTypes = new Set(); // Empty = show both AC and DC (no filter)
+        
+        // Helper: get effective power types (empty set means both)
+        function getEffectivePowerTypes() {
+            return selectedPowerTypes.size === 0 ? ['AC', 'DC'] : Array.from(selectedPowerTypes);
+        }
         let minChargePower = 0;
         let maxPriceFilter = 1.50;
         let includedOperators = new Set();
         let excludedOperators = new Set();
-        let operatorFilterMode = null;  // 'include' or 'exclude'
+        let operatorFilterMode = 'include';  // 'include' or 'exclude'
         let currentSortMode = 'price-asc';
         let currentMarket = 'de';
         let activeFilters = {
@@ -975,8 +1138,9 @@
             '24h': false
         };
         let priceCache = {};
-        let loadingTotal = 0;
-        let loadingDone = 0;
+        let markerMap = {};  // station.id -> marker
+        let openPopupStationId = null;  // Track which station has open popup
+        let availabilityInterval = null;  // Interval for refreshing availability
         
         // Currency symbols
         const currencySymbols = {
@@ -1009,10 +1173,58 @@
                 maxClusterRadius: 50,
                 iconCreateFunction: function(cluster) {
                     const count = cluster.getChildCount();
+                    const markers = cluster.getAllChildMarkers();
+                    
+                    // Find lowest AC and DC prices from all stations in cluster
+                    let lowestAC = Infinity;
+                    let lowestDC = Infinity;
+                    let currency = 'EUR';
+                    
+                    for (const marker of markers) {
+                        if (marker.stationData) {
+                            const displayPrices = getDisplayPrices(marker.stationData);
+                            for (const p of displayPrices) {
+                                if (p.type === 'AC' && p.energy_price < lowestAC) {
+                                    lowestAC = p.energy_price;
+                                    currency = p.currency || 'EUR';
+                                }
+                                if (p.type === 'DC' && p.energy_price < lowestDC) {
+                                    lowestDC = p.energy_price;
+                                    currency = p.currency || 'EUR';
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Build cluster HTML with AC/DC price info
+                    let priceLines = [];
+                    let lowestPrice = Infinity;
+                    
+                    if (lowestAC < Infinity) {
+                        priceLines.push(`AC: ${formatPrice(lowestAC, currency)}`);
+                        lowestPrice = Math.min(lowestPrice, lowestAC);
+                    }
+                    if (lowestDC < Infinity) {
+                        priceLines.push(`DC: ${formatPrice(lowestDC, currency)}`);
+                        lowestPrice = Math.min(lowestPrice, lowestDC);
+                    }
+                    
+                    let clusterHtml = '';
+                    if (priceLines.length > 0) {
+                        const priceClass = getPriceClass(lowestPrice, currency);
+                        clusterHtml = `<div class="cluster-marker ${priceClass}">
+                            <span class="cluster-count">${count} <span style="font-size: 0.7em; font-weight: normal;">ab</span></span>
+                            <span class="cluster-price">${priceLines.join('<br>')}</span>
+                        </div>`;
+                    } else {
+                        clusterHtml = `<div class="cluster-marker"><span class="cluster-count">${count}</span></div>`;
+                    }
+                    
+                    const hasMultipleLines = priceLines.length > 1;
                     return L.divIcon({
-                        html: `<div class="cluster-marker">${count}</div>`,
+                        html: clusterHtml,
                         className: 'custom-cluster',
-                        iconSize: [50, 30]
+                        iconSize: [75, hasMultipleLines ? 50 : 40]
                     });
                 }
             });
@@ -1040,12 +1252,10 @@
         }
         
         // Show/hide loading overlay
-        function showLoading(show, current = 0, total = 0) {
+        function showLoading(show) {
             const overlay = document.getElementById('loadingOverlay');
-            const progress = document.getElementById('loadingProgress');
             if (show) {
                 overlay.classList.add('visible');
-                progress.textContent = `${current}/${total}`;
             } else {
                 overlay.classList.remove('visible');
             }
@@ -1184,35 +1394,69 @@
         }
         
         // Render operator tags
+        let showAllOperators = false;
+        
         function renderOperatorTags() {
             const container = document.getElementById('operatorTags');
+            const expandContainer = document.getElementById('operatorExpandContainer');
             const operatorIds = Object.keys(operators).sort((a, b) => 
                 operators[a].localeCompare(operators[b])
             );
             
             if (operatorIds.length === 0) {
-                container.innerHTML = '<span class="operator-tag" style="color: #666; cursor: default;">Keine Betreiber gefunden</span>';
+                container.innerHTML = '<span class="operator-tag placeholder">Keine Betreiber gefunden</span>';
+                container.classList.remove('expanded');
+                expandContainer.innerHTML = '';
                 return;
             }
             
-            container.innerHTML = operatorIds.slice(0, 20).map(id => {
+            // Always render all operators
+            container.innerHTML = operatorIds.map(id => {
                 let cls = 'operator-tag';
                 if (includedOperators.has(id)) cls += ' included';
                 if (excludedOperators.has(id)) cls += ' excluded';
                 return `<span class="${cls}" data-cpo="${id}">${operators[id]}</span>`;
             }).join('');
             
-            if (operatorIds.length > 20) {
-                container.innerHTML += `<span class="operator-tag" style="color: #666; cursor: default;">+${operatorIds.length - 20} weitere</span>`;
+            // Toggle expanded class based on state
+            if (showAllOperators) {
+                container.classList.add('expanded');
+                expandContainer.innerHTML = `<span class="operator-tag expand-more" id="collapseOperators">weniger anzeigen</span>`;
+            } else {
+                container.classList.remove('expanded');
+                // Check if content overflows
+                if (container.scrollHeight > container.clientHeight) {
+                    // Count visible operators (approximate based on height)
+                    const hiddenCount = operatorIds.length - Math.floor(operatorIds.length * (container.clientHeight / container.scrollHeight));
+                    expandContainer.innerHTML = `<span class="operator-tag expand-more" id="expandOperators">+${hiddenCount > 0 ? hiddenCount : '...'} weitere</span>`;
+                } else {
+                    expandContainer.innerHTML = '';
+                }
             }
             
-            // Add click handlers
+            // Add click handlers for operator tags
             container.querySelectorAll('.operator-tag[data-cpo]').forEach(tag => {
                 tag.addEventListener('click', () => {
                     const cpoId = tag.dataset.cpo;
                     toggleOperator(cpoId);
                 });
             });
+            
+            // Add click handler for expand/collapse
+            const expandBtn = document.getElementById('expandOperators');
+            if (expandBtn) {
+                expandBtn.addEventListener('click', () => {
+                    showAllOperators = true;
+                    renderOperatorTags();
+                });
+            }
+            const collapseBtn = document.getElementById('collapseOperators');
+            if (collapseBtn) {
+                collapseBtn.addEventListener('click', () => {
+                    showAllOperators = false;
+                    renderOperatorTags();
+                });
+            }
         }
         
         // Toggle operator in filter
@@ -1256,7 +1500,7 @@
             if (chargePoints.length === 0) return;
             
             // Load prices for each selected power type
-            const powerTypesToLoad = Array.from(selectedPowerTypes);
+            const powerTypesToLoad = getEffectivePowerTypes();
             
             for (const powerType of powerTypesToLoad) {
                 const power = powerType === 'DC' ? 50 : 11;
@@ -1277,11 +1521,9 @@
                 
                 if (uncached.length === 0) continue;
                 
-                // Limit to first 50 to avoid rate limiting
-                const toFetch = uncached.slice(0, 50);
-                loadingTotal = toFetch.length;
-                loadingDone = 0;
-                showLoading(true, 0, loadingTotal);
+                // Limit to first 100 to avoid rate limiting
+                const toFetch = uncached.slice(0, 100);
+                showLoading(true);
                 
                 // Split into small batches of 5 with delay between
                 const batchSize = 5;
@@ -1318,8 +1560,7 @@
                             }
                         }
                         
-                        loadingDone += batch.length;
-                        showLoading(true, loadingDone, loadingTotal);
+                        // Keep loading indicator visible
                         
                         // Update UI progressively
                         updateMarkers();
@@ -1358,14 +1599,16 @@
             // Must have at least one price for selected power types
             if (!station.prices) return false;
             
-            const hasValidPrice = Array.from(selectedPowerTypes).some(pt => {
+            const effectivePowerTypes = getEffectivePowerTypes();
+            
+            const hasValidPrice = effectivePowerTypes.some(pt => {
                 const price = station.prices[pt];
                 return price && price.energy_price !== null && price.energy_price !== undefined;
             });
             if (!hasValidPrice) return false;
             
             // Check price filter for at least one power type
-            const passesPrice = Array.from(selectedPowerTypes).some(pt => {
+            const passesPrice = effectivePowerTypes.some(pt => {
                 const price = station.prices[pt];
                 if (!price || price.energy_price === null) return false;
                 const currency = price.currency || 'EUR';
@@ -1430,7 +1673,8 @@
         // Get display prices for a station (only for power types the station actually supports)
         function getDisplayPrices(station) {
             const prices = [];
-            for (const pt of selectedPowerTypes) {
+            const effectivePowerTypes = getEffectivePowerTypes();
+            for (const pt of effectivePowerTypes) {
                 // Only include price if station actually supports this power type
                 if (!stationSupportsPowerType(station, pt)) continue;
                 
@@ -1446,7 +1690,8 @@
         
         // Update markers on map
         function updateMarkers() {
-            markersLayer.clearLayers();
+            // Track which stations should be visible
+            const visibleStationIds = new Set();
             
             for (const station of stations) {
                 if (!stationPassesFilters(station)) continue;
@@ -1489,52 +1734,204 @@
                 
                 const marker = L.marker([station.latitude, station.longitude], { icon });
                 
-                // Build popup price rows for all available prices
-                let priceRows = '';
-                for (const p of displayPrices) {
-                    const currency = p.currency || 'EUR';
-                    priceRows += `
-                        <div class="popup-price-row">
-                            <span class="popup-price-label">${p.type} Energie:</span>
-                            <span class="popup-price-value">${formatPrice(p.energy_price, currency)}/kWh</span>
+                // Build popup price columns for AC and DC side by side
+                const acPrice = displayPrices.find(p => p.type === 'AC');
+                const dcPrice = displayPrices.find(p => p.type === 'DC');
+                
+                let priceColumns = '';
+                if (acPrice) {
+                    const currency = acPrice.currency || 'EUR';
+                    priceColumns += `
+                        <div class="popup-price-column ac">
+                            <div class="popup-price-type"><i class="fas fa-plug"></i> AC</div>
+                            <div class="popup-price-main">${formatPrice(acPrice.energy_price, currency)}/kWh</div>
+                            ${acPrice.session_fee ? `<div class="popup-price-fee">+ ${formatPrice(acPrice.session_fee, currency)} Start</div>` : ''}
                         </div>
                     `;
-                    if (p.session_fee) {
-                        priceRows += `
-                            <div class="popup-price-row">
-                                <span class="popup-price-label">${p.type} Startgebühr:</span>
-                                <span class="popup-price-value">${formatPrice(p.session_fee, currency)}</span>
-                            </div>
-                        `;
-                    }
+                }
+                if (dcPrice) {
+                    const currency = dcPrice.currency || 'EUR';
+                    priceColumns += `
+                        <div class="popup-price-column dc">
+                            <div class="popup-price-type"><i class="fas fa-bolt"></i> DC</div>
+                            <div class="popup-price-main">${formatPrice(dcPrice.energy_price, currency)}/kWh</div>
+                            ${dcPrice.session_fee ? `<div class="popup-price-fee">+ ${formatPrice(dcPrice.session_fee, currency)} Start</div>` : ''}
+                        </div>
+                    `;
                 }
                 
-                // Popup content
+                // Get pool details for popup
+                const popupDetails = poolDetails[station.id] || {};
+                const popupLocationName = popupDetails.location_name || '';
+                const popupStreet = popupDetails.street || '';
+                const popupCity = popupDetails.city || '';
+                const popupZipCode = popupDetails.zip_code || '';
+                const popupMaxPower = popupDetails.max_power || 0;
+                const popupPlugTypes = popupDetails.plug_types || [];
+                
+                // Build address for popup
+                let popupAddressParts = [];
+                if (popupStreet) popupAddressParts.push(popupStreet);
+                if (popupZipCode && popupCity) {
+                    popupAddressParts.push(`${popupZipCode} ${popupCity}`);
+                } else if (popupCity) {
+                    popupAddressParts.push(popupCity);
+                }
+                const popupAddressStr = popupAddressParts.length > 0 
+                    ? popupAddressParts.join(', ')
+                    : `${station.latitude.toFixed(5)}, ${station.longitude.toFixed(5)}`;
+                
+                // Format plug types for display
+                const plugTypesDisplay = popupPlugTypes
+                    .filter(pt => pt.toUpperCase() !== 'CHADEMO')
+                    .map(pt => {
+                        const normalized = pt.toUpperCase();
+                        if (normalized.includes('CCS') || normalized.includes('COMBO')) return 'CCS';
+                        if (normalized.includes('TYP2') || normalized.includes('TYPE2')) return 'Typ 2';
+                        return pt;
+                    })
+                    .filter((v, i, a) => a.indexOf(v) === i)  // unique
+                    .join(', ');
+                
+                // Popup content with availability placeholder
                 const popupContent = `
-                    <div class="popup-content">
+                    <div class="popup-content" data-station-id="${station.id}">
                         <div class="popup-title">
                             <i class="fas fa-charging-station"></i> ${cpoName}
                         </div>
+                        ${popupLocationName ? `<div style="font-size: 0.9em; color: #ccc; margin-bottom: 4px;">${popupLocationName}</div>` : ''}
                         <div class="popup-address">
-                            <i class="fas fa-map-marker-alt"></i> ${station.latitude.toFixed(5)}, ${station.longitude.toFixed(5)}
+                            <i class="fas fa-map-marker-alt"></i> ${popupAddressStr}
                         </div>
                         <div class="popup-prices">
-                            ${priceRows}
+                            ${priceColumns}
                         </div>
-                        <div class="popup-operator">
-                            <i class="fas fa-plug"></i> ${station.chargePointCount} Ladepunkte
+                        <div class="popup-details">
+                            <span><i class="fas fa-plug"></i> ${station.chargePointCount} Ladepunkte</span>
+                            ${popupMaxPower > 0 ? `<span><i class="fas fa-bolt"></i> bis ${popupMaxPower} kW</span>` : ''}
+                            ${plugTypesDisplay ? `<span><i class="fas fa-charging-station"></i> ${plugTypesDisplay}</span>` : ''}
+                        </div>
+                        <div class="popup-availability" id="availability-${station.id}">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>?/${station.chargePointCount} frei</span>
                         </div>
                     </div>
                 `;
                 
-                // FIX: popup stays open on click
                 marker.bindPopup(popupContent, {
                     closeOnClick: false,
-                    autoClose: false
+                    autoClose: true  // Only one popup open at a time
                 });
                 marker.stationData = station;
                 
-                markersLayer.addLayer(marker);
+                // Track popup open/close and load availability
+                marker.on('popupopen', async () => {
+                    openPopupStationId = station.id;
+                    
+                    // Clear any existing interval
+                    if (availabilityInterval) {
+                        clearInterval(availabilityInterval);
+                        availabilityInterval = null;
+                    }
+                    
+                    // Function to load availability
+                    const loadAvailability = async () => {
+                        try {
+                            const chargePointIds = station.chargePoints ? station.chargePoints.map(cp => cp.id) : [];
+                            if (chargePointIds.length === 0) return;
+                            
+                            const response = await fetch('/api/status', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ charge_point_ids: chargePointIds })
+                            });
+                            
+                            if (!response.ok) throw new Error('Status API error');
+                            
+                            const statuses = await response.json();
+                            
+                            // Count available charge points
+                            let available = 0;
+                            let total = chargePointIds.length;
+                            for (const cpId of chargePointIds) {
+                                const status = statuses[cpId];
+                                if (status && status.status === 'AVAILABLE') {
+                                    available++;
+                                }
+                            }
+                            
+                            // Update the availability display
+                            const availElem = document.getElementById(`availability-${station.id}`);
+                            if (availElem) {
+                                const icon = available > 0 ? 'fa-check-circle' : 'fa-times-circle';
+                                const color = available > 0 ? '#2ecc71' : '#e74c3c';
+                                availElem.innerHTML = `
+                                    <i class="fas ${icon}" style="color: ${color}"></i>
+                                    <span style="color: ${color}">${available}/${total} frei</span>
+                                `;
+                            }
+                        } catch (error) {
+                            console.error('Error loading availability:', error);
+                            const availElem = document.getElementById(`availability-${station.id}`);
+                            if (availElem) {
+                                availElem.innerHTML = `
+                                    <i class="fas fa-question-circle" style="color: #888"></i>
+                                    <span style="color: #888">?/${total} frei</span>
+                                `;
+                            }
+                        }
+                    };
+                    
+                    // Load immediately
+                    loadAvailability();
+                    
+                    // Refresh every 20 seconds
+                    availabilityInterval = setInterval(loadAvailability, 20000);
+                });
+                marker.on('popupclose', () => {
+                    if (openPopupStationId === station.id) {
+                        openPopupStationId = null;
+                    }
+                    // Clear interval when popup closes
+                    if (availabilityInterval) {
+                        clearInterval(availabilityInterval);
+                        availabilityInterval = null;
+                    }
+                });
+                
+                // Check if existing marker exists
+                const existingMarker = markerMap[station.id];
+                if (existingMarker) {
+                    // Update existing marker's icon
+                    existingMarker.setIcon(icon);
+                    
+                    // Only update popup content if popup is not open (to preserve availability)
+                    if (!existingMarker.isPopupOpen || !existingMarker.isPopupOpen()) {
+                        existingMarker.setPopupContent(popupContent);
+                    }
+                } else {
+                    // Add new marker
+                    markersLayer.addLayer(marker);
+                    markerMap[station.id] = marker;
+                }
+                
+                visibleStationIds.add(station.id);
+            }
+            
+            // Remove markers that are no longer visible
+            for (const stationId in markerMap) {
+                if (!visibleStationIds.has(stationId)) {
+                    markersLayer.removeLayer(markerMap[stationId]);
+                    delete markerMap[stationId];
+                }
+            }
+            
+            // Reopen popup if one was open
+            if (openPopupStationId && markerMap[openPopupStationId]) {
+                const marker = markerMap[openPopupStationId];
+                if (!marker.isPopupOpen || !marker.isPopupOpen()) {
+                    marker.openPopup();
+                }
             }
         }
         
@@ -1623,7 +2020,7 @@
                 ).join(', ');
                 
                 return `
-                    <div class="station-card" data-lat="${station.latitude}" data-lng="${station.longitude}">
+                    <div class="station-card" data-lat="${station.latitude}" data-lng="${station.longitude}" data-station-id="${station.id}">
                         <div class="station-header">
                             <div class="station-info">
                                 <div class="station-name">${locationName}</div>
@@ -1651,7 +2048,14 @@
                 card.addEventListener('click', () => {
                     const lat = parseFloat(card.dataset.lat);
                     const lng = parseFloat(card.dataset.lng);
+                    const stationId = card.dataset.stationId;
+                    
                     map.setView([lat, lng], 17);
+                    
+                    // Open the popup for this station
+                    if (stationId && markerMap[stationId]) {
+                        markerMap[stationId].openPopup();
+                    }
                     
                     // Highlight card
                     container.querySelectorAll('.station-card').forEach(c => c.classList.remove('selected'));
@@ -1711,11 +2115,8 @@
                     
                     // Toggle the selection
                     if (btn.classList.contains('active')) {
-                        // Don't allow deselecting if it's the only one selected
-                        if (selectedPowerTypes.size > 1) {
-                            btn.classList.remove('active');
-                            selectedPowerTypes.delete(powerType);
-                        }
+                        btn.classList.remove('active');
+                        selectedPowerTypes.delete(powerType);
                     } else {
                         btn.classList.add('active');
                         selectedPowerTypes.add(powerType);
@@ -1761,34 +2162,22 @@
             
             // Operator filter mode buttons
             document.getElementById('includeMode').addEventListener('click', () => {
-                const btn = document.getElementById('includeMode');
-                if (operatorFilterMode === 'include') {
-                    operatorFilterMode = null;
-                    btn.classList.remove('active-include');
-                } else {
-                    operatorFilterMode = 'include';
-                    btn.classList.add('active-include');
-                    document.getElementById('excludeMode').classList.remove('active-exclude');
-                }
+                operatorFilterMode = 'include';
+                document.getElementById('includeMode').classList.add('active-include');
+                document.getElementById('excludeMode').classList.remove('active-exclude');
             });
             
             document.getElementById('excludeMode').addEventListener('click', () => {
-                const btn = document.getElementById('excludeMode');
-                if (operatorFilterMode === 'exclude') {
-                    operatorFilterMode = null;
-                    btn.classList.remove('active-exclude');
-                } else {
-                    operatorFilterMode = 'exclude';
-                    btn.classList.add('active-exclude');
-                    document.getElementById('includeMode').classList.remove('active-include');
-                }
+                operatorFilterMode = 'exclude';
+                document.getElementById('excludeMode').classList.add('active-exclude');
+                document.getElementById('includeMode').classList.remove('active-include');
             });
             
             document.getElementById('clearOperators').addEventListener('click', () => {
                 includedOperators.clear();
                 excludedOperators.clear();
-                operatorFilterMode = null;
-                document.getElementById('includeMode').classList.remove('active-include');
+                operatorFilterMode = 'include';
+                document.getElementById('includeMode').classList.add('active-include');
                 document.getElementById('excludeMode').classList.remove('active-exclude');
                 renderOperatorTags();
                 updateMarkers();

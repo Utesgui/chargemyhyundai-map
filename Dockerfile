@@ -27,7 +27,7 @@ FROM python:3.12-slim AS production
 LABEL org.opencontainers.image.title="ChargeMyHyundai Price Map"
 LABEL org.opencontainers.image.description="Interactive map showing charging station prices for Hyundai vehicles"
 LABEL org.opencontainers.image.vendor="b0t.at"
-LABEL org.opencontainers.image.source="https://github.com/b0t-at/chargemyhyundai-map"
+LABEL org.opencontainers.image.source="https://github.com/utesgui/chargemyhyundai-map"
 
 # Create non-root user for security
 RUN groupadd -r appuser && useradd -r -g appuser appuser

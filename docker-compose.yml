@@ -3,7 +3,7 @@
 
 services:
   chargemyhyundai-map:
-    image: b0t.at/b0t-at-public/chargemyhyundai-map:latest
+    image: git.b0t.at/b0t-at-public/chargemyhyundai-map:latest
     container_name: chargemyhyundai-map
     restart: unless-stopped
     
@@ -21,14 +21,14 @@ services:
       - proxy
     
     # Resource limits (adjust as needed)
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 256M
-        reservations:
-          cpus: '0.1'
-          memory: 128M
+    #deploy:
+    #  resources:
+    #    limits:
+    #      cpus: '0.5'
+    #      memory: 256M
+    #    reservations:
+    #      cpus: '0.1'
+    #      memory: 128M
     
     # Traefik labels for routing
     labels:
@@ -36,20 +36,12 @@ services:
       
       # HTTP Router
       - "traefik.http.routers.chargemyhyundai.rule=Host(`chargemyhyundai.example.com`)"
-      - "traefik.http.routers.chargemyhyundai.entrypoints=websecure"
+      - "traefik.http.routers.chargemyhyundai.entrypoints=https"
       - "traefik.http.routers.chargemyhyundai.tls=true"
       - "traefik.http.routers.chargemyhyundai.tls.certresolver=letsencrypt"
       
       # Service configuration
       - "traefik.http.services.chargemyhyundai.loadbalancer.server.port=5000"
-      
-      # Optional: HTTP to HTTPS redirect
-      - "traefik.http.routers.chargemyhyundai-http.rule=Host(`chargemyhyundai.example.com`)"
-      - "traefik.http.routers.chargemyhyundai-http.entrypoints=web"
-      - "traefik.http.routers.chargemyhyundai-http.middlewares=https-redirect@file"
-      
-      # Optional: Security headers middleware
-      # - "traefik.http.routers.chargemyhyundai.middlewares=security-headers@file"
 
     # Health check
     healthcheck:
