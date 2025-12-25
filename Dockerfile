@@ -40,6 +40,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy application files
 COPY --chown=appuser:appuser app.py .
+COPY --chown=appuser:appuser chargemyhyundai_api.py .
 COPY --chown=appuser:appuser templates/ ./templates/
 COPY --chown=appuser:appuser static/ ./static/
 
