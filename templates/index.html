@@ -988,7 +988,7 @@
         .mobile-panel-toggles {
             display: none;
             position: fixed;
-            bottom: max(env(safe-area-inset-bottom), 20px);
+            bottom: calc(20px + env(safe-area-inset-bottom));
             left: 50%;
             transform: translateX(-50%);
             z-index: 1002;
@@ -1142,6 +1142,7 @@
                 position: fixed;
                 top: 0;
                 left: 0;
+                padding-bottom: env(safe-area-inset-bottom);
             }
             
             .mobile-panel-toggles {
@@ -1156,8 +1157,10 @@
             
             /* Adjust stats bar for mobile - align with buttons */
             .stats-bar {
-                bottom: max(env(safe-area-inset-bottom), 20px);
+                bottom: calc(20px + env(safe-area-inset-bottom));
                 min-width: 120px;
+                gap: 4px;
+                padding: 8px 12px;
             }
             
             .stats-bar .stat-label {
@@ -1180,7 +1183,7 @@
             
             /* Adjust legend for mobile - align with buttons */
             .map-legend {
-                bottom: max(env(safe-area-inset-bottom), 20px);
+                bottom: calc(20px + env(safe-area-inset-bottom));
                 right: 10px;
                 font-size: 0.8em;
                 padding: 10px 12px;
@@ -1204,7 +1207,7 @@
             
             /* Move toggle buttons to center bottom */
             .mobile-panel-toggles {
-                bottom: max(env(safe-area-inset-bottom), 20px);
+                bottom: calc(20px + env(safe-area-inset-bottom));
             }
             
             /* Mobile panel header with close button */
@@ -1223,9 +1226,9 @@
             
             /* Stats and legend boxes align with buttons */
             .stats-bar {
-                bottom: max(env(safe-area-inset-bottom), 10px);
-                gap: 5px;
-                padding: 8px 10px;
+                bottom: calc(10px + env(safe-area-inset-bottom));
+                gap: 3px;
+                padding: 6px 10px;
                 font-size: 0.75em;
                 min-width: 110px;
             }
@@ -1245,14 +1248,14 @@
             }
             
             .map-legend {
-                bottom: max(env(safe-area-inset-bottom), 10px);
+                bottom: calc(10px + env(safe-area-inset-bottom));
                 font-size: 0.7em;
                 padding: 8px 10px;
                 min-width: 110px;
             }
             
             .mobile-panel-toggles {
-                bottom: max(env(safe-area-inset-bottom), 10px);
+                bottom: calc(10px + env(safe-area-inset-bottom));
             }
         }
     </style>
