@@ -1573,9 +1573,15 @@
             'HUF': 'Ft'
         };
         
-        // Initialize map
+        // Default location: Passau
+        const DEFAULT_LAT = 48.5665;
+        const DEFAULT_LNG = 13.4314;
+        const DEFAULT_ZOOM = 14;
+
+        // Initialize map with geolocation
         function initMap() {
-            map = L.map('map').setView([48.5665, 13.4314], 14); // Passau default
+            // Create map with default view first (will update if geolocation succeeds)
+            map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LNG], DEFAULT_ZOOM);
             
             // Dark tile layer
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
@@ -1583,6 +1589,35 @@
                 subdomains: 'abcd',
                 maxZoom: 19
             }).addTo(map);
+            
+            // Try to get user's location
+            if ('geolocation' in navigator) {
+                navigator.geolocation.getCurrentPosition(
+                    // Success callback
+                    (position) => {
+                        const userLat = position.coords.latitude;
+                        const userLng = position.coords.longitude;
+                        console.log(`Geolocation successful: ${userLat}, ${userLng}`);
+                        map.setView([userLat, userLng], DEFAULT_ZOOM);
+                        loadStations();
+                    },
+                    // Error callback - fall back to Passau
+                    (error) => {
+                        console.log('Geolocation error:', error.message, '- using default location (Passau)');
+                        // Map already at default location, just load stations
+                        loadStations();
+                    },
+                    // Options
+                    {
+                        enableHighAccuracy: false,
+                        timeout: 5000,
+                        maximumAge: 300000 // Cache position for 5 minutes
+                    }
+                );
+            } else {
+                console.log('Geolocation not supported - using default location (Passau)');
+                loadStations();
+            }
             
             // Marker cluster group
             markersLayer = L.markerClusterGroup({
@@ -1651,8 +1686,7 @@
             map.on('moveend', debounce(loadStations, 500));
             map.on('zoomend', debounce(loadStations, 500));
             
-            // Initial load
-            loadStations();
+            // Note: Initial loadStations() is called in geolocation success/error callbacks
         }
         
         // Debounce function
