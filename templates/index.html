@@ -1538,6 +1538,8 @@
         let poolDetails = {}; // Pool ID -> {cpo_name, location_name, street, city}
         let currentTariff = 'HYUNDAI_SMART';
         let selectedPowerTypes = new Set(); // Empty = show both AC and DC (no filter)
+        let currentLocationMarker = null;  // Marker for user's current location
+        let searchMarker = null;  // Marker for searched address
         
         // Helper: get effective power types (empty set means both)
         function getEffectivePowerTypes() {
@@ -1599,6 +1601,10 @@
                         const userLng = position.coords.longitude;
                         console.log(`Geolocation successful: ${userLat}, ${userLng}`);
                         map.setView([userLat, userLng], DEFAULT_ZOOM);
+                        
+                        // Add marker for current location
+                        addCurrentLocationMarker(userLat, userLng);
+                        
                         loadStations();
                     },
                     // Error callback - fall back to Passau
@@ -1700,6 +1706,84 @@
                 clearTimeout(timeout);
                 timeout = setTimeout(later, wait);
             };
+        }
+        
+        // Helper function to escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Helper function to validate hex color
+        function isValidColor(color) {
+            // Check if it's a valid hex color
+            return /^#[0-9A-F]{6}$/i.test(color);
+        }
+        
+        // Helper function to validate RGB values
+        function isValidRgb(rgb) {
+            // Check if it's valid RGB values (e.g., "52, 152, 219")
+            const parts = rgb.split(',').map(p => p.trim());
+            if (parts.length !== 3) return false;
+            return parts.every(p => {
+                const num = parseInt(p, 10);
+                return !isNaN(num) && num >= 0 && num <= 255;
+            });
+        }
+        
+        // Helper function to create a custom location marker icon
+        function createLocationMarkerIcon(iconClass, gradientStart, gradientEnd, shadowColor) {
+            // Validate icon class - only allow known Font Awesome classes
+            const allowedIcons = ['fa-location-arrow', 'fa-search'];
+            if (!allowedIcons.includes(iconClass)) {
+                iconClass = 'fa-location-arrow';  // Use first allowed icon as fallback
+            }
+            
+            // Validate colors
+            if (!isValidColor(gradientStart)) gradientStart = '#3498db';
+            if (!isValidColor(gradientEnd)) gradientEnd = '#2980b9';
+            if (!isValidRgb(shadowColor)) shadowColor = '52, 152, 219';
+            
+            return L.divIcon({
+                html: `<div style="background: linear-gradient(135deg, ${gradientStart}, ${gradientEnd}); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(${shadowColor}, 0.6); border: 3px solid white;"><i class="fas ${iconClass}" style="font-size: 14px;"></i></div>`,
+                className: 'custom-location-marker',
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            });
+        }
+        
+        // Add marker for current location
+        function addCurrentLocationMarker(lat, lng) {
+            // Remove existing current location marker if it exists
+            if (currentLocationMarker) {
+                map.removeLayer(currentLocationMarker);
+            }
+            
+            // Create a blue marker with a location arrow icon for current location
+            const currentLocationIcon = createLocationMarkerIcon('fa-location-arrow', '#3498db', '#2980b9', '52, 152, 219');
+            
+            currentLocationMarker = L.marker([lat, lng], { icon: currentLocationIcon })
+                .bindPopup('<div class="popup-content"><div class="popup-title"><i class="fas fa-location-arrow"></i> Ihr Standort</div><div class="popup-address">Aktuelle Position</div></div>')
+                .addTo(map);
+        }
+        
+        // Add marker for searched address
+        function addSearchMarker(lat, lng, address) {
+            // Remove existing search marker if it exists
+            if (searchMarker) {
+                map.removeLayer(searchMarker);
+            }
+            
+            // Create a red marker with a search icon for searched location
+            const searchIcon = createLocationMarkerIcon('fa-search', '#e74c3c', '#c0392b', '231, 76, 60');
+            
+            // Escape address to prevent XSS
+            const safeAddress = escapeHtml(address);
+            
+            searchMarker = L.marker([lat, lng], { icon: searchIcon })
+                .bindPopup(`<div class="popup-content"><div class="popup-title"><i class="fas fa-search"></i> Gesuchter Ort</div><div class="popup-address">${safeAddress}</div></div>`)
+                .addTo(map);
         }
         
         // Show/hide loading overlay
@@ -2689,7 +2773,14 @@
                     
                     if (results.length > 0) {
                         const result = results[0];
-                        map.setView([parseFloat(result.lat), parseFloat(result.lon)], 14);
+                        const lat = parseFloat(result.lat);
+                        const lng = parseFloat(result.lon);
+                        const displayName = result.display_name;
+                        
+                        map.setView([lat, lng], 14);
+                        
+                        // Add marker for searched address
+                        addSearchMarker(lat, lng, displayName);
                     }
                 } catch (error) {
                     console.error('Search error:', error);
