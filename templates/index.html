@@ -1708,8 +1708,21 @@
             };
         }
         
+        // Helper function to escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
         // Helper function to create a custom location marker icon
         function createLocationMarkerIcon(iconClass, gradientStart, gradientEnd, shadowColor) {
+            // Validate icon class - only allow known Font Awesome classes
+            const allowedIcons = ['fa-location-arrow', 'fa-search'];
+            if (!allowedIcons.includes(iconClass)) {
+                iconClass = 'fa-map-marker-alt';
+            }
+            
             return L.divIcon({
                 html: `<div style="background: linear-gradient(135deg, ${gradientStart}, ${gradientEnd}); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(${shadowColor}, 0.6); border: 3px solid white;"><i class="fas ${iconClass}" style="font-size: 14px;"></i></div>`,
                 className: 'custom-location-marker',
@@ -1743,8 +1756,11 @@
             // Create a red marker with a search icon for searched location
             const searchIcon = createLocationMarkerIcon('fa-search', '#e74c3c', '#c0392b', '231, 76, 60');
             
+            // Escape address to prevent XSS
+            const safeAddress = escapeHtml(address);
+            
             searchMarker = L.marker([lat, lng], { icon: searchIcon })
-                .bindPopup(`<div class="popup-content"><div class="popup-title"><i class="fas fa-search"></i> Gesuchter Ort</div><div class="popup-address">${address}</div></div>`)
+                .bindPopup(`<div class="popup-content"><div class="popup-title"><i class="fas fa-search"></i> Gesuchter Ort</div><div class="popup-address">${safeAddress}</div></div>`)
                 .addTo(map);
         }
         
