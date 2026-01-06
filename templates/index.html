@@ -1715,13 +1715,35 @@
             return div.innerHTML;
         }
         
+        // Helper function to validate hex color
+        function isValidColor(color) {
+            // Check if it's a valid hex color
+            return /^#[0-9A-F]{6}$/i.test(color);
+        }
+        
+        // Helper function to validate RGB values
+        function isValidRgb(rgb) {
+            // Check if it's valid RGB values (e.g., "52, 152, 219")
+            const parts = rgb.split(',').map(p => p.trim());
+            if (parts.length !== 3) return false;
+            return parts.every(p => {
+                const num = parseInt(p);
+                return !isNaN(num) && num >= 0 && num <= 255;
+            });
+        }
+        
         // Helper function to create a custom location marker icon
         function createLocationMarkerIcon(iconClass, gradientStart, gradientEnd, shadowColor) {
             // Validate icon class - only allow known Font Awesome classes
             const allowedIcons = ['fa-location-arrow', 'fa-search'];
             if (!allowedIcons.includes(iconClass)) {
-                iconClass = 'fa-map-marker-alt';
+                iconClass = 'fa-location-arrow';  // Use first allowed icon as fallback
             }
+            
+            // Validate colors
+            if (!isValidColor(gradientStart)) gradientStart = '#3498db';
+            if (!isValidColor(gradientEnd)) gradientEnd = '#2980b9';
+            if (!isValidRgb(shadowColor)) shadowColor = '52, 152, 219';
             
             return L.divIcon({
                 html: `<div style="background: linear-gradient(135deg, ${gradientStart}, ${gradientEnd}); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(${shadowColor}, 0.6); border: 3px solid white;"><i class="fas ${iconClass}" style="font-size: 14px;"></i></div>`,
