@@ -1727,7 +1727,7 @@
             const parts = rgb.split(',').map(p => p.trim());
             if (parts.length !== 3) return false;
             return parts.every(p => {
-                const num = parseInt(p);
+                const num = parseInt(p, 10);
                 return !isNaN(num) && num >= 0 && num <= 255;
             });
         }
