@@ -16,8 +16,8 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Any, Tuple
 from contextlib import contextmanager
 
-# Database file location
-DB_PATH = os.path.join(os.path.dirname(__file__), 'station_cache.db')
+# Database file location (configurable via environment variable for Docker)
+DB_PATH = os.environ.get('CACHE_DB_PATH', os.path.join(os.path.dirname(__file__), 'station_cache.db'))
 
 # Cache settings
 CACHE_EXPIRY_HOURS = 24  # Cached data is considered stale after 24 hours

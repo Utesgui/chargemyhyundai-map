@@ -41,11 +41,13 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Copy application files
 COPY --chown=appuser:appuser app.py .
 COPY --chown=appuser:appuser chargemyhyundai_api.py .
+COPY --chown=appuser:appuser station_cache.py .
+COPY --chown=appuser:appuser background_updater.py .
 COPY --chown=appuser:appuser templates/ ./templates/
 COPY --chown=appuser:appuser static/ ./static/
 
-# Create necessary directories
-RUN mkdir -p /app/templates /app/static/css /app/static/js && \
+# Create necessary directories (including data dir for SQLite cache)
+RUN mkdir -p /app/templates /app/static/css /app/static/js /app/data && \
     chown -R appuser:appuser /app
 
 # Switch to non-root user
@@ -56,6 +58,10 @@ ENV FLASK_APP=app.py
 ENV FLASK_ENV=production
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
+ENV CACHE_DB_PATH=/app/data/station_cache.db
+
+# Volume for persistent cache data
+VOLUME /app/data
 
 # Expose port
 EXPOSE 5000
