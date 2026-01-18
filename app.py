@@ -34,16 +34,6 @@ DEFAULT_LOCALE = "de_DE"
 cpo_cache = {}
 cpo_cache_time = None
 
-# Session with proper headers
-session = requests.Session()
-session.headers.update({
-    'Content-Type': 'application/json',
-    'Accept': 'application/json, text/plain, */*',
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Origin': 'https://chargemyhyundai.com',
-    'Referer': 'https://chargemyhyundai.com/web/de/hyundai-de/map'
-})
-
 # Cache for tariffs (refreshed every hour)
 tariff_cache = {}
 tariff_cache_time = None
@@ -51,8 +41,8 @@ tariff_cache_time = None
 # Initialize station cache
 station_cache = get_cache()
 
-# Initialize and start background updater
-background_updater = init_updater(session, base_url=BASE_URL, default_market=DEFAULT_MARKET)
+# Initialize and start background updater (session is no longer used, updater creates fresh sessions)
+background_updater = init_updater(None, base_url=BASE_URL, default_market=DEFAULT_MARKET)
 
 
 def start_background_updater():
@@ -73,6 +63,20 @@ def stop_background_updater():
 atexit.register(stop_background_updater)
 
 
+def create_api_session():
+    """Create a fresh session with proper headers for API calls"""
+    import requests as req
+    s = req.Session()
+    s.headers.update({
+        'Content-Type': 'application/json',
+        'Accept': 'application/json, text/plain, */*',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Origin': 'https://chargemyhyundai.com',
+        'Referer': 'https://chargemyhyundai.com/web/de/hyundai-de/map'
+    })
+    return s
+
+
 def get_tariffs(market=DEFAULT_MARKET):
     """Get tariffs with caching"""
     global tariff_cache, tariff_cache_time
@@ -82,7 +86,8 @@ def get_tariffs(market=DEFAULT_MARKET):
         if datetime.now() - tariff_cache_time < timedelta(hours=1):
             return tariff_cache[cache_key]
     
-    response = session.get(
+    temp_session = create_api_session()
+    response = temp_session.get(
         f"{BASE_URL}/{market}/tariffs",
         params={"locale": DEFAULT_LOCALE}
     )
@@ -214,7 +219,8 @@ def api_stations():
             }
         }
         
-        response = session.post(
+        temp_session = create_api_session()
+        response = temp_session.post(
             f"{BASE_URL}/{market}/query",
             json=payload,
             headers={"rest-api-path": "clusters"}
@@ -222,6 +228,7 @@ def api_stations():
         response.raise_for_status()
         return jsonify(response.json())
     except Exception as e:
+        print(f"API Error in api_stations: {e}")
         return jsonify({'error': str(e)}), 500
 
 
@@ -229,7 +236,8 @@ def api_stations():
 def api_markets():
     """Get all available markets"""
     try:
-        response = session.get(
+        temp_session = create_api_session()
+        response = temp_session.get(
             f"{BASE_URL}/{DEFAULT_MARKET}/markets",
             params={"locale": DEFAULT_LOCALE}
         )
@@ -250,7 +258,8 @@ def api_cpo_info(cpo_id):
     
     try:
         # Try to get CPO info from the API
-        response = session.get(
+        temp_session = create_api_session()
+        response = temp_session.get(
             f"{BASE_URL}/{DEFAULT_MARKET}/cpo/{cpo_id}",
             params={"locale": DEFAULT_LOCALE}
         )
@@ -322,7 +331,8 @@ def api_pool_details():
             for i in range(0, len(uncached_ids), batch_size):
                 batch = uncached_ids[i:i + batch_size]
                 
-                response = session.post(
+                temp_session = create_api_session()
+                response = temp_session.post(
                     f"{BASE_URL}/{market}/query",
                     json={"dcsPoolIds": batch},
                     headers={"rest-api-path": "pools"}
@@ -511,17 +521,7 @@ def api_prices():
         if uncached_cps:
             print(f"Requesting prices for {len(uncached_cps)} charge points, tariff={tariff_id}, market={market}")
             
-            # Create fresh session for each request to avoid cookie issues
-            import requests as req
-            temp_session = req.Session()
-            temp_session.headers.update({
-                'Content-Type': 'application/json',
-                'Accept': 'application/json, text/plain, */*',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Origin': 'https://chargemyhyundai.com',
-                'Referer': 'https://chargemyhyundai.com/web/de/hyundai-de/map'
-            })
-            
+            temp_session = create_api_session()
             payload = [
                 {
                     "charge_point": cp,
@@ -622,7 +622,8 @@ def api_status():
             ]
         }
         
-        response = session.post(
+        temp_session = create_api_session()
+        response = temp_session.post(
             f"{BASE_URL}/{DEFAULT_MARKET}/query",
             json=payload,
             headers={"rest-api-path": "charge-points"}

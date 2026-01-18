@@ -31,13 +31,12 @@ class BackgroundUpdater:
         Initialize the background updater.
         
         Args:
-            session: Configured requests session with proper headers
+            session: Configured requests session with proper headers (used as template)
             base_url: ChargeMyHyundai API base URL
             default_market: Default market code
             default_tariffs: List of tariff IDs to update prices for
         """
         self.cache = get_cache()
-        self.session = session
         self.base_url = base_url
         self.default_market = default_market
         self.default_tariffs = default_tariffs or ['HYUNDAI_FLEX', 'HYUNDAI_SMART']
@@ -51,6 +50,18 @@ class BackgroundUpdater:
         self._last_update_time: Optional[datetime] = None
         self._updates_today = 0
         self._errors_today = 0
+    
+    def _create_session(self) -> requests.Session:
+        """Create a fresh session with proper headers for API calls"""
+        s = requests.Session()
+        s.headers.update({
+            'Content-Type': 'application/json',
+            'Accept': 'application/json, text/plain, */*',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            'Origin': 'https://chargemyhyundai.com',
+            'Referer': 'https://chargemyhyundai.com/web/de/hyundai-de/map'
+        })
+        return s
     
     def start(self):
         """Start the background updater thread"""
@@ -217,7 +228,8 @@ class BackgroundUpdater:
     def _fetch_pool_details(self, pool_id: str, market: str) -> Optional[Dict[str, Any]]:
         """Fetch pool details from API"""
         try:
-            response = self.session.post(
+            session = self._create_session()
+            response = session.post(
                 f"{self.base_url}/{market}/query",
                 json={"dcsPoolIds": [pool_id]},
                 headers={"rest-api-path": "pools"},
@@ -313,7 +325,8 @@ class BackgroundUpdater:
                 "power": power
             }]
             
-            response = self.session.post(
+            session = self._create_session()
+            response = session.post(
                 f"{self.base_url}/{market}/tariffs/{tariff_id}/prices",
                 json=payload,
                 timeout=30
