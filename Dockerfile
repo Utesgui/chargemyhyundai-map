@@ -29,6 +29,12 @@ LABEL org.opencontainers.image.description="Interactive map showing charging sta
 LABEL org.opencontainers.image.vendor="b0t.at"
 LABEL org.opencontainers.image.source="https://github.com/utesgui/chargemyhyundai-map"
 
+# Install gosu for dropping privileges in entrypoint (Debian alternative to Alpine's su-exec)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gosu \
+    && rm -rf /var/lib/apt/lists/* \
+    && gosu nobody true
+
 # Create non-root user for security
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
@@ -46,12 +52,16 @@ COPY --chown=appuser:appuser background_updater.py .
 COPY --chown=appuser:appuser templates/ ./templates/
 COPY --chown=appuser:appuser static/ ./static/
 
+# Copy entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Create necessary directories (including data dir for SQLite cache)
 RUN mkdir -p /app/templates /app/static/css /app/static/js /app/data && \
     chown -R appuser:appuser /app
 
-# Switch to non-root user
-USER appuser
+# NOTE: Don't switch to non-root user here - entrypoint will handle it
+# This allows the entrypoint to fix volume permissions before dropping privileges
 
 # Environment variables
 ENV FLASK_APP=app.py
@@ -69,6 +79,9 @@ EXPOSE 5000
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/')" || exit 1
+
+# Entrypoint handles volume permissions and drops to non-root user
+ENTRYPOINT ["docker-entrypoint.sh"]
 
 # Run with gunicorn for production
 CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--threads", "4", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "app:app"]
