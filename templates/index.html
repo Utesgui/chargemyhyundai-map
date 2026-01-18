@@ -1633,8 +1633,11 @@
         };
         let priceCache = {};
         let markerMap = {};  // station.id -> marker
+        let markerPriceHash = {};  // station.id -> price hash (to detect changes)
         let openPopupStationId = null;  // Track which station has open popup
         let availabilityInterval = null;  // Interval for refreshing availability
+        let updateMarkersScheduled = false;  // Debounce flag for updateMarkers
+        let updateMarkersTimeout = null;  // Timeout for debounced updateMarkers
         
         // Currency symbols
         const currencySymbols = {
@@ -1766,6 +1769,9 @@
             // Load stations on map move
             map.on('moveend', debounce(loadStations, 500));
             map.on('zoomend', debounce(loadStations, 500));
+            
+            // Update marker visibility when viewport changes (for culling)
+            map.on('moveend', debounce(updateMarkers, 100));
             
             // Note: Initial loadStations() is called in geolocation success/error callbacks
         }
@@ -2570,283 +2576,333 @@
             return prices;
         }
         
-        // Update markers on map
+        // Update markers on map (debounced for performance)
         function updateMarkers() {
+            // Debounce: if already scheduled, skip
+            if (updateMarkersScheduled) return;
+            updateMarkersScheduled = true;
+            
+            // Use requestAnimationFrame for smooth updates
+            requestAnimationFrame(() => {
+                updateMarkersScheduled = false;
+                _updateMarkersInternal();
+            });
+        }
+        
+        // Internal marker update (called via debounce)
+        function _updateMarkersInternal() {
             // Track which stations should be visible
             const visibleStationIds = new Set();
+            const bounds = map.getBounds();
+            // Expand bounds slightly to prevent markers from disappearing too early when panning
+            const expandedBounds = bounds.pad(0.2);
+            
+            // Batch marker additions for better performance
+            const markersToAdd = [];
             
             for (const station of stations) {
+                // Skip stations outside expanded visible bounds (viewport culling)
+                if (!expandedBounds.contains([station.latitude, station.longitude])) {
+                    continue;
+                }
+                
                 if (!stationPassesFilters(station)) continue;
                 
                 const displayPrices = getDisplayPrices(station);
                 if (displayPrices.length === 0) continue;
                 
-                const cpoId = station.dcsTechnicalChargePointOperatorId;
-                const cpoName = operators[cpoId] || 'Unbekannt';
-                
-                // Build marker HTML showing both AC and DC if available
-                let markerHtml = '';
-                if (displayPrices.length === 1) {
-                    const p = displayPrices[0];
-                    const priceClass = getPriceClass(p.energy_price, p.currency || 'EUR');
-                    markerHtml = `<div class="price-marker ${priceClass}">${p.type}: ${formatPrice(p.energy_price, p.currency || 'EUR')}</div>`;
-                } else {
-                    // Show both prices stacked
-                    const acPrice = displayPrices.find(p => p.type === 'AC');
-                    const dcPrice = displayPrices.find(p => p.type === 'DC');
-                    let lines = [];
-                    if (acPrice) {
-                        lines.push(`AC: ${formatPrice(acPrice.energy_price, acPrice.currency || 'EUR')}`);
-                    }
-                    if (dcPrice) {
-                        lines.push(`DC: ${formatPrice(dcPrice.energy_price, dcPrice.currency || 'EUR')}`);
-                    }
-                    // Use lowest price for color
-                    const lowest = displayPrices[0];
-                    const priceClass = getPriceClass(lowest.energy_price, lowest.currency || 'EUR');
-                    markerHtml = `<div class="price-marker dual ${priceClass}">${lines.join('<br>')}</div>`;
-                }
-                
-                const icon = L.divIcon({
-                    html: markerHtml,
-                    className: 'custom-price-marker',
-                    iconSize: [70, displayPrices.length > 1 ? 36 : 24],
-                    iconAnchor: [35, displayPrices.length > 1 ? 18 : 12]
-                });
-                
-                const marker = L.marker([station.latitude, station.longitude], { icon });
-                
-                // Build popup price columns for AC and DC side by side
-                const acPrice = displayPrices.find(p => p.type === 'AC');
-                const dcPrice = displayPrices.find(p => p.type === 'DC');
-                
-                // Get charge points by type from pool details
-                const stationPoolDetails = poolDetails[station.id] || {};
-                const acChargePoints = stationPoolDetails.charge_points_ac || [];
-                const dcChargePoints = stationPoolDetails.charge_points_dc || [];
-                
-                let priceColumns = '';
-                if (acPrice) {
-                    const currency = acPrice.currency || 'EUR';
-                    const acTotal = acChargePoints.length;
-                    const blockingInfo = formatBlockingFee(acPrice);
-                    priceColumns += `
-                        <div class="popup-price-column ac">
-                            <div class="popup-price-type"><i class="fas fa-plug"></i> AC</div>
-                            <div class="popup-price-main">${formatPrice(acPrice.energy_price, currency)}/kWh</div>
-                            ${acPrice.session_fee ? `<div class="popup-price-fee">+ ${formatPrice(acPrice.session_fee, currency)} Start</div>` : ''}
-                            ${blockingInfo ? `<div class="popup-price-blocking"><i class="fas fa-clock"></i> ${blockingInfo}</div>` : ''}
-                            ${acTotal > 0 ? `<div class="popup-price-avail" id="avail-ac-${station.id}"><i class="fas fa-spinner fa-spin" style="color: #888"></i> <span style="color: #888">?/${acTotal}</span></div>` : ''}
-                        </div>
-                    `;
-                }
-                if (dcPrice) {
-                    const currency = dcPrice.currency || 'EUR';
-                    const dcTotal = dcChargePoints.length;
-                    const blockingInfo = formatBlockingFee(dcPrice);
-                    priceColumns += `
-                        <div class="popup-price-column dc">
-                            <div class="popup-price-type"><i class="fas fa-bolt"></i> DC</div>
-                            <div class="popup-price-main">${formatPrice(dcPrice.energy_price, currency)}/kWh</div>
-                            ${dcPrice.session_fee ? `<div class="popup-price-fee">+ ${formatPrice(dcPrice.session_fee, currency)} Start</div>` : ''}
-                            ${blockingInfo ? `<div class="popup-price-blocking"><i class="fas fa-clock"></i> ${blockingInfo}</div>` : ''}
-                            ${dcTotal > 0 ? `<div class="popup-price-avail" id="avail-dc-${station.id}"><i class="fas fa-spinner fa-spin" style="color: #888"></i> <span style="color: #888">?/${dcTotal}</span></div>` : ''}
-                        </div>
-                    `;
-                }
-                
-                // Get pool details for popup
-                const popupDetails = poolDetails[station.id] || {};
-                const popupLocationName = popupDetails.location_name || '';
-                const popupStreet = popupDetails.street || '';
-                const popupCity = popupDetails.city || '';
-                const popupZipCode = popupDetails.zip_code || '';
-                const popupMaxPower = popupDetails.max_power || 0;
-                const popupPlugTypes = popupDetails.plug_types || [];
-                
-                // Build address for popup
-                let popupAddressParts = [];
-                if (popupStreet) popupAddressParts.push(popupStreet);
-                if (popupZipCode && popupCity) {
-                    popupAddressParts.push(`${popupZipCode} ${popupCity}`);
-                } else if (popupCity) {
-                    popupAddressParts.push(popupCity);
-                }
-                const popupAddressStr = popupAddressParts.length > 0 
-                    ? popupAddressParts.join(', ')
-                    : `${station.latitude.toFixed(5)}, ${station.longitude.toFixed(5)}`;
-                
-                // Format plug types for display
-                const plugTypesDisplay = popupPlugTypes
-                    .filter(pt => pt.toUpperCase() !== 'CHADEMO')
-                    .map(pt => {
-                        const normalized = pt.toUpperCase();
-                        if (normalized.includes('CCS') || normalized.includes('COMBO')) return 'CCS';
-                        if (normalized.includes('TYP2') || normalized.includes('TYPE2')) return 'Typ 2';
-                        return pt;
-                    })
-                    .filter((v, i, a) => a.indexOf(v) === i)  // unique
-                    .join(', ');
-                
-                // Check if cached and format cache age
-                const cacheInfo = formatCacheInfo(popupDetails);
-                
-                // Popup content with availability placeholder, blocking fees, and refresh button
-                const popupContent = `
-                    <div class="popup-content" data-station-id="${station.id}" data-market="${currentMarket}">
-                        <div class="popup-title">
-                            <i class="fas fa-charging-station"></i> ${cpoName}
-                        </div>
-                        ${popupLocationName ? `<div style="font-size: 0.9em; color: #ccc; margin-bottom: 4px;">${popupLocationName}</div>` : ''}
-                        <div class="popup-address">
-                            <i class="fas fa-map-marker-alt"></i> ${popupAddressStr}
-                        </div>
-                        <div class="popup-prices">
-                            ${priceColumns}
-                        </div>
-                        <div class="popup-details">
-                            <span><i class="fas fa-plug"></i> ${station.chargePointCount} Ladepunkte</span>
-                            ${popupMaxPower > 0 ? `<span><i class="fas fa-bolt"></i> bis ${popupMaxPower} kW</span>` : ''}
-                            ${plugTypesDisplay ? `<span><i class="fas fa-charging-station"></i> ${plugTypesDisplay}</span>` : ''}
-                        </div>
-                        <button class="popup-refresh-btn" onclick="refreshStation('${station.id}', '${currentMarket}')" id="refresh-btn-${station.id}">
-                            <i class="fas fa-sync-alt"></i> Preise aktualisieren
-                        </button>
-                        ${cacheInfo ? `<div class="popup-cache-info ${cacheInfo.stale ? 'stale' : ''}" id="cache-info-${station.id}">${cacheInfo.text}</div>` : ''}
-                    </div>
-                `;
-                
-                marker.bindPopup(popupContent, {
-                    closeOnClick: false,
-                    autoClose: true  // Only one popup open at a time
-                });
-                marker.stationData = station;
-                
-                // Track popup open/close and load availability
-                marker.on('popupopen', async () => {
-                    openPopupStationId = station.id;
-                    
-                    // Clear any existing interval
-                    if (availabilityInterval) {
-                        clearInterval(availabilityInterval);
-                        availabilityInterval = null;
-                    }
-                    
-                    // Function to load availability
-                    const loadAvailability = async () => {
-                        try {
-                            // Get charge points by type from pool details
-                            const stationDetails = poolDetails[station.id] || {};
-                            const acCpIds = stationDetails.charge_points_ac || [];
-                            const dcCpIds = stationDetails.charge_points_dc || [];
-                            const allCpIds = [...acCpIds, ...dcCpIds];
-                            
-                            if (allCpIds.length === 0) return;
-                            
-                            const response = await fetch('/api/status', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ charge_point_ids: allCpIds })
-                            });
-                            
-                            if (!response.ok) throw new Error('Status API error');
-                            
-                            const statuses = await response.json();
-                            
-                            // Count available AC charge points
-                            let acAvailable = 0;
-                            for (const cpId of acCpIds) {
-                                const status = statuses[cpId];
-                                if (status && status.status === 'AVAILABLE') {
-                                    acAvailable++;
-                                }
-                            }
-                            
-                            // Count available DC charge points
-                            let dcAvailable = 0;
-                            for (const cpId of dcCpIds) {
-                                const status = statuses[cpId];
-                                if (status && status.status === 'AVAILABLE') {
-                                    dcAvailable++;
-                                }
-                            }
-                            
-                            // Update AC availability display
-                            const acElem = document.getElementById(`avail-ac-${station.id}`);
-                            if (acElem && acCpIds.length > 0) {
-                                const icon = acAvailable > 0 ? 'fa-check-circle' : 'fa-times-circle';
-                                const color = acAvailable > 0 ? '#2ecc71' : '#e74c3c';
-                                acElem.innerHTML = `<i class="fas ${icon}" style="color: ${color}"></i> <span style="color: ${color}">${acAvailable}/${acCpIds.length} frei</span>`;
-                            }
-                            
-                            // Update DC availability display
-                            const dcElem = document.getElementById(`avail-dc-${station.id}`);
-                            if (dcElem && dcCpIds.length > 0) {
-                                const icon = dcAvailable > 0 ? 'fa-check-circle' : 'fa-times-circle';
-                                const color = dcAvailable > 0 ? '#2ecc71' : '#e74c3c';
-                                dcElem.innerHTML = `<i class="fas ${icon}" style="color: ${color}"></i> <span style="color: ${color}">${dcAvailable}/${dcCpIds.length} frei</span>`;
-                            }
-                        } catch (error) {
-                            console.error('Error loading availability:', error);
-                            // Show error state for both
-                            const acElem = document.getElementById(`avail-ac-${station.id}`);
-                            const dcElem = document.getElementById(`avail-dc-${station.id}`);
-                            if (acElem) acElem.innerHTML = `<i class="fas fa-question-circle" style="color: #888"></i> <span style="color: #888">?</span>`;
-                            if (dcElem) dcElem.innerHTML = `<i class="fas fa-question-circle" style="color: #888"></i> <span style="color: #888">?</span>`;
-                        }
-                    };
-                    
-                    // Load immediately
-                    loadAvailability();
-                    
-                    // Refresh every 20 seconds
-                    availabilityInterval = setInterval(loadAvailability, 20000);
-                });
-                marker.on('popupclose', () => {
-                    if (openPopupStationId === station.id) {
-                        openPopupStationId = null;
-                    }
-                    // Clear interval when popup closes
-                    if (availabilityInterval) {
-                        clearInterval(availabilityInterval);
-                        availabilityInterval = null;
-                    }
-                });
-                
-                // Check if existing marker exists
+                // Create a hash of the price data to detect changes
+                const priceHash = displayPrices.map(p => `${p.type}:${p.energy_price}`).join('|');
                 const existingMarker = markerMap[station.id];
-                if (existingMarker) {
-                    // Update existing marker's icon
-                    existingMarker.setIcon(icon);
-                    
-                    // Only update popup content if popup is not open (to preserve availability)
-                    if (!existingMarker.isPopupOpen || !existingMarker.isPopupOpen()) {
-                        existingMarker.setPopupContent(popupContent);
-                    }
-                } else {
-                    // Add new marker
-                    markersLayer.addLayer(marker);
+                
+                // If marker exists and price hasn't changed, skip update
+                if (existingMarker && markerPriceHash[station.id] === priceHash) {
+                    visibleStationIds.add(station.id);
+                    continue;
+                }
+                
+                markerPriceHash[station.id] = priceHash;
+                
+                // Create or update marker
+                let marker = markerMap[station.id];
+                const isNewMarker = !marker;
+                
+                // Only create icon and popup content for new markers or price changes
+                const icon = createMarkerIcon(displayPrices);
+                const popupContent = createPopupContent(station, displayPrices);
+                
+                if (isNewMarker) {
+                    marker = L.marker([station.latitude, station.longitude], { icon });
+                    marker.stationData = station;
+                    marker.bindPopup(popupContent, {
+                        closeOnClick: false,
+                        autoClose: true
+                    });
+                    setupMarkerEvents(marker, station);
+                    markersToAdd.push(marker);
                     markerMap[station.id] = marker;
+                } else {
+                    // Update existing marker
+                    marker.setIcon(icon);
+                    if (!marker.isPopupOpen || !marker.isPopupOpen()) {
+                        marker.setPopupContent(popupContent);
+                    }
                 }
                 
                 visibleStationIds.add(station.id);
             }
             
-            // Remove markers that are no longer visible
+            // Batch add new markers for better performance
+            if (markersToAdd.length > 0) {
+                markersLayer.addLayers(markersToAdd);
+            }
+            
+            // Collect markers to remove
+            const markersToRemove = [];
             for (const stationId in markerMap) {
                 if (!visibleStationIds.has(stationId)) {
-                    markersLayer.removeLayer(markerMap[stationId]);
+                    markersToRemove.push(markerMap[stationId]);
                     delete markerMap[stationId];
+                    delete markerPriceHash[stationId];
                 }
+            }
+            
+            // Batch remove markers for better performance
+            if (markersToRemove.length > 0) {
+                markersLayer.removeLayers(markersToRemove);
             }
             
             // Reopen popup if one was open
             if (openPopupStationId && markerMap[openPopupStationId]) {
-                const marker = markerMap[openPopupStationId];
-                if (!marker.isPopupOpen || !marker.isPopupOpen()) {
-                    marker.openPopup();
+                const markerToOpen = markerMap[openPopupStationId];
+                if (!markerToOpen.isPopupOpen || !markerToOpen.isPopupOpen()) {
+                    markerToOpen.openPopup();
                 }
             }
+        }
+        
+        // Create marker icon (separated for performance)
+        function createMarkerIcon(displayPrices) {
+            let markerHtml = '';
+            if (displayPrices.length === 1) {
+                const p = displayPrices[0];
+                const priceClass = getPriceClass(p.energy_price, p.currency || 'EUR');
+                markerHtml = `<div class="price-marker ${priceClass}">${p.type}: ${formatPrice(p.energy_price, p.currency || 'EUR')}</div>`;
+            } else {
+                const acPrice = displayPrices.find(p => p.type === 'AC');
+                const dcPrice = displayPrices.find(p => p.type === 'DC');
+                let lines = [];
+                if (acPrice) lines.push(`AC: ${formatPrice(acPrice.energy_price, acPrice.currency || 'EUR')}`);
+                if (dcPrice) lines.push(`DC: ${formatPrice(dcPrice.energy_price, dcPrice.currency || 'EUR')}`);
+                const lowest = displayPrices[0];
+                const priceClass = getPriceClass(lowest.energy_price, lowest.currency || 'EUR');
+                markerHtml = `<div class="price-marker dual ${priceClass}">${lines.join('<br>')}</div>`;
+            }
+            
+            return L.divIcon({
+                html: markerHtml,
+                className: 'custom-price-marker',
+                iconSize: [70, displayPrices.length > 1 ? 36 : 24],
+                iconAnchor: [35, displayPrices.length > 1 ? 18 : 12]
+            });
+        }
+        
+        // Create popup content (separated for performance)
+        function createPopupContent(station, displayPrices) {
+            const cpoId = station.dcsTechnicalChargePointOperatorId;
+            const cpoName = operators[cpoId] || 'Unbekannt';
+            
+            // Build popup price columns for AC and DC side by side
+            const acPrice = displayPrices.find(p => p.type === 'AC');
+            const dcPrice = displayPrices.find(p => p.type === 'DC');
+            
+            // Get charge points by type from pool details
+            const stationPoolDetails = poolDetails[station.id] || {};
+            const acChargePoints = stationPoolDetails.charge_points_ac || [];
+            const dcChargePoints = stationPoolDetails.charge_points_dc || [];
+            
+            let priceColumns = '';
+            if (acPrice) {
+                const currency = acPrice.currency || 'EUR';
+                const acTotal = acChargePoints.length;
+                const blockingInfo = formatBlockingFee(acPrice);
+                priceColumns += `
+                    <div class="popup-price-column ac">
+                        <div class="popup-price-type"><i class="fas fa-plug"></i> AC</div>
+                        <div class="popup-price-main">${formatPrice(acPrice.energy_price, currency)}/kWh</div>
+                        ${acPrice.session_fee ? `<div class="popup-price-fee">+ ${formatPrice(acPrice.session_fee, currency)} Start</div>` : ''}
+                        ${blockingInfo ? `<div class="popup-price-blocking"><i class="fas fa-clock"></i> ${blockingInfo}</div>` : ''}
+                        ${acTotal > 0 ? `<div class="popup-price-avail" id="avail-ac-${station.id}"><i class="fas fa-spinner fa-spin" style="color: #888"></i> <span style="color: #888">?/${acTotal}</span></div>` : ''}
+                    </div>
+                `;
+            }
+            if (dcPrice) {
+                const currency = dcPrice.currency || 'EUR';
+                const dcTotal = dcChargePoints.length;
+                const blockingInfo = formatBlockingFee(dcPrice);
+                priceColumns += `
+                    <div class="popup-price-column dc">
+                        <div class="popup-price-type"><i class="fas fa-bolt"></i> DC</div>
+                        <div class="popup-price-main">${formatPrice(dcPrice.energy_price, currency)}/kWh</div>
+                        ${dcPrice.session_fee ? `<div class="popup-price-fee">+ ${formatPrice(dcPrice.session_fee, currency)} Start</div>` : ''}
+                        ${blockingInfo ? `<div class="popup-price-blocking"><i class="fas fa-clock"></i> ${blockingInfo}</div>` : ''}
+                        ${dcTotal > 0 ? `<div class="popup-price-avail" id="avail-dc-${station.id}"><i class="fas fa-spinner fa-spin" style="color: #888"></i> <span style="color: #888">?/${dcTotal}</span></div>` : ''}
+                    </div>
+                `;
+            }
+            
+            // Get pool details for popup
+            const popupDetails = poolDetails[station.id] || {};
+            const popupLocationName = popupDetails.location_name || '';
+            const popupStreet = popupDetails.street || '';
+            const popupCity = popupDetails.city || '';
+            const popupZipCode = popupDetails.zip_code || '';
+            const popupMaxPower = popupDetails.max_power || 0;
+            const popupPlugTypes = popupDetails.plug_types || [];
+            
+            // Build address for popup
+            let popupAddressParts = [];
+            if (popupStreet) popupAddressParts.push(popupStreet);
+            if (popupZipCode && popupCity) {
+                popupAddressParts.push(`${popupZipCode} ${popupCity}`);
+            } else if (popupCity) {
+                popupAddressParts.push(popupCity);
+            }
+            const popupAddressStr = popupAddressParts.length > 0 
+                ? popupAddressParts.join(', ')
+                : `${station.latitude.toFixed(5)}, ${station.longitude.toFixed(5)}`;
+            
+            // Format plug types for display
+            const plugTypesDisplay = popupPlugTypes
+                .filter(pt => pt.toUpperCase() !== 'CHADEMO')
+                .map(pt => {
+                    const normalized = pt.toUpperCase();
+                    if (normalized.includes('CCS') || normalized.includes('COMBO')) return 'CCS';
+                    if (normalized.includes('TYP2') || normalized.includes('TYPE2')) return 'Typ 2';
+                    return pt;
+                })
+                .filter((v, i, a) => a.indexOf(v) === i)  // unique
+                .join(', ');
+            
+            // Check if cached and format cache age
+            const cacheInfo = formatCacheInfo(popupDetails);
+            
+            return `
+                <div class="popup-content" data-station-id="${station.id}" data-market="${currentMarket}">
+                    <div class="popup-title">
+                        <i class="fas fa-charging-station"></i> ${cpoName}
+                    </div>
+                    ${popupLocationName ? `<div style="font-size: 0.9em; color: #ccc; margin-bottom: 4px;">${popupLocationName}</div>` : ''}
+                    <div class="popup-address">
+                        <i class="fas fa-map-marker-alt"></i> ${popupAddressStr}
+                    </div>
+                    <div class="popup-prices">
+                        ${priceColumns}
+                    </div>
+                    <div class="popup-details">
+                        <span><i class="fas fa-plug"></i> ${station.chargePointCount} Ladepunkte</span>
+                        ${popupMaxPower > 0 ? `<span><i class="fas fa-bolt"></i> bis ${popupMaxPower} kW</span>` : ''}
+                        ${plugTypesDisplay ? `<span><i class="fas fa-charging-station"></i> ${plugTypesDisplay}</span>` : ''}
+                    </div>
+                    <button class="popup-refresh-btn" onclick="refreshStation('${station.id}', '${currentMarket}')" id="refresh-btn-${station.id}">
+                        <i class="fas fa-sync-alt"></i> Preise aktualisieren
+                    </button>
+                    ${cacheInfo ? `<div class="popup-cache-info ${cacheInfo.stale ? 'stale' : ''}" id="cache-info-${station.id}">${cacheInfo.text}</div>` : ''}
+                </div>
+            `;
+        }
+        
+        // Setup marker event handlers (separated for reuse)
+        function setupMarkerEvents(marker, station) {
+            marker.on('popupopen', async () => {
+                openPopupStationId = station.id;
+                
+                // Clear any existing interval
+                if (availabilityInterval) {
+                    clearInterval(availabilityInterval);
+                    availabilityInterval = null;
+                }
+                
+                // Function to load availability
+                const loadAvailability = async () => {
+                    try {
+                        // Get charge points by type from pool details
+                        const stationDetails = poolDetails[station.id] || {};
+                        const acCpIds = stationDetails.charge_points_ac || [];
+                        const dcCpIds = stationDetails.charge_points_dc || [];
+                        const allCpIds = [...acCpIds, ...dcCpIds];
+                        
+                        if (allCpIds.length === 0) return;
+                        
+                        const response = await fetch('/api/status', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ charge_point_ids: allCpIds })
+                        });
+                        
+                        if (!response.ok) throw new Error('Status API error');
+                        
+                        const statuses = await response.json();
+                        
+                        // Count available AC charge points
+                        let acAvailable = 0;
+                        for (const cpId of acCpIds) {
+                            const status = statuses[cpId];
+                            if (status && status.status === 'AVAILABLE') {
+                                acAvailable++;
+                            }
+                        }
+                        
+                        // Count available DC charge points
+                        let dcAvailable = 0;
+                        for (const cpId of dcCpIds) {
+                            const status = statuses[cpId];
+                            if (status && status.status === 'AVAILABLE') {
+                                dcAvailable++;
+                            }
+                        }
+                        
+                        // Update AC availability display
+                        const acElem = document.getElementById(`avail-ac-${station.id}`);
+                        if (acElem && acCpIds.length > 0) {
+                            const icon = acAvailable > 0 ? 'fa-check-circle' : 'fa-times-circle';
+                            const color = acAvailable > 0 ? '#2ecc71' : '#e74c3c';
+                            acElem.innerHTML = `<i class="fas ${icon}" style="color: ${color}"></i> <span style="color: ${color}">${acAvailable}/${acCpIds.length} frei</span>`;
+                        }
+                        
+                        // Update DC availability display
+                        const dcElem = document.getElementById(`avail-dc-${station.id}`);
+                        if (dcElem && dcCpIds.length > 0) {
+                            const icon = dcAvailable > 0 ? 'fa-check-circle' : 'fa-times-circle';
+                            const color = dcAvailable > 0 ? '#2ecc71' : '#e74c3c';
+                            dcElem.innerHTML = `<i class="fas ${icon}" style="color: ${color}"></i> <span style="color: ${color}">${dcAvailable}/${dcCpIds.length} frei</span>`;
+                        }
+                    } catch (error) {
+                        console.error('Error loading availability:', error);
+                        const acElem = document.getElementById(`avail-ac-${station.id}`);
+                        const dcElem = document.getElementById(`avail-dc-${station.id}`);
+                        if (acElem) acElem.innerHTML = `<i class="fas fa-question-circle" style="color: #888"></i> <span style="color: #888">?</span>`;
+                        if (dcElem) dcElem.innerHTML = `<i class="fas fa-question-circle" style="color: #888"></i> <span style="color: #888">?</span>`;
+                    }
+                };
+                
+                // Load immediately
+                loadAvailability();
+                
+                // Refresh every 20 seconds
+                availabilityInterval = setInterval(loadAvailability, 20000);
+            });
+            
+            marker.on('popupclose', () => {
+                if (openPopupStationId === station.id) {
+                    openPopupStationId = null;
+                }
+                // Clear interval when popup closes
+                if (availabilityInterval) {
+                    clearInterval(availabilityInterval);
+                    availabilityInterval = null;
+                }
+            });
         }
         
         // Update stations list
