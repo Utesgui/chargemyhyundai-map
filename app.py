@@ -1,6 +1,12 @@
 """
 ChargeMyHyundai Price Map - Flask Backend
 A web application to display charging station prices on an interactive map.
+
+Features:
+- SQLite-based caching for station data and prices
+- Background updates with rate limiting (3 requests per 10 seconds)
+- Manual refresh button for individual stations
+- 24-hour cache expiry with automatic daily updates
 """
 
 from flask import Flask, jsonify, request, render_template, send_from_directory
@@ -10,6 +16,11 @@ from functools import lru_cache
 from datetime import datetime, timedelta
 import time
 import os
+import atexit
+
+# Import caching and background updater
+from station_cache import get_cache, StationCache
+from background_updater import init_updater, get_updater, BackgroundUpdater
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 CORS(app)
@@ -36,6 +47,30 @@ session.headers.update({
 # Cache for tariffs (refreshed every hour)
 tariff_cache = {}
 tariff_cache_time = None
+
+# Initialize station cache
+station_cache = get_cache()
+
+# Initialize and start background updater
+background_updater = init_updater(session, base_url=BASE_URL, default_market=DEFAULT_MARKET)
+
+
+def start_background_updater():
+    """Start the background updater (called after app initialization)"""
+    if background_updater and not background_updater.is_running():
+        background_updater.start()
+        print("📦 Background cache updater started")
+
+
+def stop_background_updater():
+    """Stop the background updater on shutdown"""
+    if background_updater and background_updater.is_running():
+        background_updater.stop()
+        print("📦 Background cache updater stopped")
+
+
+# Register shutdown handler
+atexit.register(stop_background_updater)
 
 
 def get_tariffs(market=DEFAULT_MARKET):
@@ -83,6 +118,67 @@ def api_tariffs():
         return jsonify(simplified)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/cached-stations')
+def api_cached_stations():
+    """
+    Get all cached stations for fast initial display.
+    Returns stations from the local cache without hitting the external API.
+    """
+    try:
+        market = request.args.get('market', DEFAULT_MARKET)
+        lat_nw = request.args.get('lat_nw')
+        lng_nw = request.args.get('lng_nw')
+        lat_se = request.args.get('lat_se')
+        lng_se = request.args.get('lng_se')
+        
+        if lat_nw and lng_nw and lat_se and lng_se:
+            # Get stations in bounding box
+            cached = station_cache.get_stations_in_bounds(
+                float(lat_nw), float(lng_nw), 
+                float(lat_se), float(lng_se),
+                market
+            )
+        else:
+            # Get all stations
+            cached = station_cache.get_all_stations(market)
+        
+        # Transform to format expected by frontend
+        stations = []
+        for s in cached:
+            # Build chargePoints array from cached data
+            charge_points = []
+            for cp_id in (s.get('charge_points_ac') or []):
+                charge_points.append({'id': cp_id, 'powerType': 'AC'})
+            for cp_id in (s.get('charge_points_dc') or []):
+                charge_points.append({'id': cp_id, 'powerType': 'DC'})
+            
+            stations.append({
+                'id': s['pool_id'],
+                'latitude': s['latitude'],
+                'longitude': s['longitude'],
+                'chargePointCount': s.get('charge_point_count') or len(charge_points),
+                'dcsTcpoId': s.get('cpo_id'),
+                'chargePoints': charge_points,
+                'maxPower': s.get('max_power'),
+                'plugTypes': s.get('plug_types') or [],
+                'cached': True,
+                'cpoName': s.get('cpo_name'),
+                'locationName': s.get('location_name'),
+                'city': s.get('city'),
+                'street': s.get('street')
+            })
+        
+        return jsonify({
+            'stations': stations,
+            'count': len(stations),
+            'source': 'cache'
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e), 'stations': [], 'count': 0}), 500
 
 
 @app.route('/api/stations')
@@ -175,7 +271,9 @@ pool_cache = {}
 
 @app.route('/api/pool-details', methods=['POST'])
 def api_pool_details():
-    """Get detailed pool information including CPO names and addresses"""
+    """Get detailed pool information including CPO names and addresses.
+    Uses SQLite cache for faster responses and reduced API load.
+    """
     try:
         data = request.json
         pool_ids = data.get('pool_ids', [])
@@ -184,17 +282,40 @@ def api_pool_details():
         if not pool_ids:
             return jsonify({'error': 'No pool IDs provided'}), 400
         
-        # Check cache first
-        cached_results = {}
-        uncached_ids = []
-        for pid in pool_ids:
+        # Check SQLite cache first
+        cached_results = station_cache.get_stations(pool_ids)
+        
+        # Convert cached results to expected format
+        results = {}
+        for pool_id, station in cached_results.items():
+            results[pool_id] = {
+                'pool_id': pool_id,
+                'cpo_name': station.get('cpo_name', 'Unbekannt'),
+                'location_name': station.get('location_name'),
+                'street': station.get('street'),
+                'city': station.get('city'),
+                'zip_code': station.get('zip_code'),
+                'max_power': station.get('max_power'),
+                'plug_types': station.get('plug_types', []),
+                'charge_points_ac': station.get('charge_points_ac', []),
+                'charge_points_dc': station.get('charge_points_dc', []),
+                'contact_name': station.get('contact_name'),
+                'contact_phone': station.get('contact_phone'),
+                'cached': True,
+                'updated_at': station.get('updated_at')
+            }
+        
+        # Find IDs that need to be fetched from API
+        uncached_ids = [pid for pid in pool_ids if pid not in cached_results]
+        
+        # Also check in-memory cache for backward compatibility
+        for pid in list(uncached_ids):
             if pid in pool_cache:
-                cached_results[pid] = pool_cache[pid]
-            else:
-                uncached_ids.append(pid)
+                results[pid] = pool_cache[pid]
+                results[pid]['cached'] = True
+                uncached_ids.remove(pid)
         
         # Fetch uncached pools in batches
-        fetched_results = {}
         if uncached_ids:
             # Limit batch size
             batch_size = 20
@@ -243,7 +364,6 @@ def api_pool_details():
                             contact_phone = contacts[0].get('phone')
                         
                         # Get max power level, plug types, and charge points by AC/DC
-                        # Classification: TYP2/TYPE2 = AC, CCS/CCS2/COMBO = DC, fallback to phaseType
                         max_power = 0
                         plug_types = set()
                         charge_points_by_type = {'AC': [], 'DC': []}
@@ -287,16 +407,19 @@ def api_pool_details():
                             'max_power': max_power,
                             'plug_types': list(plug_types),
                             'charge_points_ac': charge_points_by_type.get('AC', []),
-                            'charge_points_dc': charge_points_by_type.get('DC', [])
+                            'charge_points_dc': charge_points_by_type.get('DC', []),
+                            'cached': False,
+                            'updated_at': datetime.utcnow().isoformat()
                         }
                         
-                        # Cache it
+                        # Save to SQLite cache
+                        station_cache.save_station(pool_id, market, pool_info)
+                        
+                        # Also cache in memory for backward compatibility
                         pool_cache[pool_id] = pool_info
-                        fetched_results[pool_id] = pool_info
+                        results[pool_id] = pool_info
         
-        # Combine results
-        all_results = {**cached_results, **fetched_results}
-        return jsonify(all_results)
+        return jsonify(results)
         
     except Exception as e:
         import traceback
@@ -305,12 +428,40 @@ def api_pool_details():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/cached-prices', methods=['POST'])
+def api_cached_prices():
+    """
+    Get cached prices for multiple stations (all tariffs, all power types).
+    This is used for fast tariff switching without API calls.
+    """
+    try:
+        data = request.json
+        pool_ids = data.get('pool_ids', [])
+        market = data.get('market', DEFAULT_MARKET)
+        
+        if not pool_ids:
+            return jsonify({})
+        
+        # Get all cached prices for these pools
+        all_prices = station_cache.get_all_prices_for_pools(pool_ids[:200], market)
+        
+        return jsonify(all_prices)
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/prices', methods=['POST'])
 def api_prices():
-    """Get prices for multiple charge points"""
+    """Get prices for multiple charge points.
+    Uses SQLite cache for faster responses when data is fresh.
+    """
     try:
         data = request.json
         charge_points = data.get('charge_points', [])
+        pool_ids = data.get('pool_ids', [])  # New: accept pool IDs for cache lookup
         tariff_id = data.get('tariff_id', 'HYUNDAI_FLEX')
         power_type = data.get('power_type', 'AC')
         power = data.get('power', 11)
@@ -321,85 +472,131 @@ def api_prices():
         
         # Limit batch size to avoid rate limiting
         charge_points = charge_points[:10]
+        pool_ids = pool_ids[:10] if pool_ids else []
         
-        # Build request payload
-        payload = [
-            {
-                "charge_point": cp,
-                "power_type": power_type,
-                "power": power
-            }
-            for cp in charge_points
-        ]
+        # Check SQLite cache first for cached prices
+        cached_prices = {}
+        if pool_ids:
+            cached_prices = station_cache.get_prices(pool_ids, tariff_id, power_type, market)
         
-        print(f"Requesting prices for {len(charge_points)} charge points, tariff={tariff_id}, market={market}")
+        # Build result list
+        prices = []
+        uncached_cps = []
+        uncached_pool_map = {}  # charge_point -> pool_id
         
-        # Create fresh session for each request to avoid cookie issues
-        import requests as req
-        temp_session = req.Session()
-        temp_session.headers.update({
-            'Content-Type': 'application/json',
-            'Accept': 'application/json, text/plain, */*',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Origin': 'https://chargemyhyundai.com',
-            'Referer': 'https://chargemyhyundai.com/web/de/hyundai-de/map'
-        })
-        
-        response = temp_session.post(
-            f"{BASE_URL}/{market}/tariffs/{tariff_id}/prices",
-            json=payload
-        )
-        
-        if not response.ok:
-            print(f"API Error: {response.status_code}")
-            # Return empty prices instead of failing
-            return jsonify([
-                {
+        for i, cp in enumerate(charge_points):
+            pool_id = pool_ids[i] if i < len(pool_ids) else None
+            
+            # Check if we have a cached price for this pool
+            if pool_id and pool_id in cached_prices:
+                cached = cached_prices[pool_id]
+                prices.append({
                     'charge_point': cp,
                     'power_type': power_type,
                     'power': power,
-                    'currency': 'EUR',
-                    'energy_price': None,
-                    'session_fee': None,
-                    'blocking_fee': None,
-                    'blocking_after_minutes': None
-                }
-                for cp in charge_points
-            ])
+                    'currency': cached.get('currency', 'EUR'),
+                    'energy_price': cached.get('energy_price'),
+                    'session_fee': cached.get('session_fee'),
+                    'blocking_fee': cached.get('blocking_fee'),
+                    'blocking_after_minutes': cached.get('blocking_after_minutes'),
+                    'cached': True,
+                    'updated_at': cached.get('updated_at')
+                })
+            else:
+                uncached_cps.append(cp)
+                if pool_id:
+                    uncached_pool_map[cp] = pool_id
         
-        # Parse and simplify response
-        prices = []
-        response_data = response.json()
-        
-        for item in response_data:
-            energy_price = None
-            session_fee = None
-            blocking_fee = None
-            blocking_after = None
-            currency = item.get('currency', 'EUR')
+        # Fetch uncached prices from API
+        if uncached_cps:
+            print(f"Requesting prices for {len(uncached_cps)} charge points, tariff={tariff_id}, market={market}")
             
-            for element in item.get('elements', []):
-                for component in element.get('price_components', []):
-                    if component['type'] == 'ENERGY':
-                        energy_price = component['price']
-                    elif component['type'] == 'FLAT':
-                        session_fee = component['price']
-                    elif component['type'] == 'TIME':
-                        blocking_fee = component['price']
-                        min_duration = element.get('restrictions', {}).get('min_duration')
-                        if min_duration:
-                            blocking_after = min_duration // 60
-            
-            prices.append({
-                'charge_point': item.get('price_identifier', {}).get('charge_point', ''),
-                'power_type': item.get('price_identifier', {}).get('power_type', power_type),
-                'power': item.get('price_identifier', {}).get('power', power),
-                'currency': currency,
-                'energy_price': energy_price,
-                'session_fee': session_fee,
-                'blocking_fee': blocking_fee,
-                'blocking_after_minutes': blocking_after
+            # Create fresh session for each request to avoid cookie issues
+            import requests as req
+            temp_session = req.Session()
+            temp_session.headers.update({
+                'Content-Type': 'application/json',
+                'Accept': 'application/json, text/plain, */*',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Origin': 'https://chargemyhyundai.com',
+                'Referer': 'https://chargemyhyundai.com/web/de/hyundai-de/map'
             })
+            
+            payload = [
+                {
+                    "charge_point": cp,
+                    "power_type": power_type,
+                    "power": power
+                }
+                for cp in uncached_cps
+            ]
+            
+            response = temp_session.post(
+                f"{BASE_URL}/{market}/tariffs/{tariff_id}/prices",
+                json=payload
+            )
+            
+            if not response.ok:
+                print(f"API Error: {response.status_code}")
+                # Return empty prices for uncached items
+                for cp in uncached_cps:
+                    prices.append({
+                        'charge_point': cp,
+                        'power_type': power_type,
+                        'power': power,
+                        'currency': 'EUR',
+                        'energy_price': None,
+                        'session_fee': None,
+                        'blocking_fee': None,
+                        'blocking_after_minutes': None,
+                        'cached': False
+                    })
+            else:
+                # Parse and save response
+                response_data = response.json()
+                
+                for item in response_data:
+                    energy_price = None
+                    session_fee = None
+                    blocking_fee = None
+                    blocking_after = None
+                    currency = item.get('currency', 'EUR')
+                    
+                    for element in item.get('elements', []):
+                        for component in element.get('price_components', []):
+                            if component['type'] == 'ENERGY':
+                                energy_price = component['price']
+                            elif component['type'] == 'FLAT':
+                                session_fee = component['price']
+                            elif component['type'] == 'TIME':
+                                blocking_fee = component['price']
+                                min_duration = element.get('restrictions', {}).get('min_duration')
+                                if min_duration:
+                                    blocking_after = min_duration // 60
+                    
+                    cp_id = item.get('price_identifier', {}).get('charge_point', '')
+                    
+                    price_data = {
+                        'charge_point': cp_id,
+                        'power_type': item.get('price_identifier', {}).get('power_type', power_type),
+                        'power': item.get('price_identifier', {}).get('power', power),
+                        'currency': currency,
+                        'energy_price': energy_price,
+                        'session_fee': session_fee,
+                        'blocking_fee': blocking_fee,
+                        'blocking_after_minutes': blocking_after,
+                        'cached': False,
+                        'updated_at': datetime.utcnow().isoformat()
+                    }
+                    
+                    prices.append(price_data)
+                    
+                    # Save to SQLite cache if we have the pool ID
+                    pool_id = uncached_pool_map.get(cp_id)
+                    if pool_id and energy_price is not None:
+                        station_cache.save_price(
+                            pool_id, cp_id, tariff_id, power_type, power, market, price_data
+                        )
         
         return jsonify(prices)
     except Exception as e:
@@ -453,6 +650,99 @@ def api_operators():
     return jsonify([])
 
 
+@app.route('/api/cache/stats')
+def api_cache_stats():
+    """Get cache statistics and background updater status"""
+    try:
+        cache_stats = station_cache.get_stats()
+        updater_status = background_updater.get_status() if background_updater else {}
+        
+        return jsonify({
+            'cache': cache_stats,
+            'updater': updater_status
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/cache/refresh', methods=['POST'])
+def api_cache_refresh():
+    """
+    Force refresh a specific station's data.
+    Called when user clicks the refresh button in station popup.
+    """
+    try:
+        data = request.json
+        pool_id = data.get('pool_id')
+        market = data.get('market', DEFAULT_MARKET)
+        
+        if not pool_id:
+            return jsonify({'error': 'No pool_id provided'}), 400
+        
+        if not background_updater:
+            return jsonify({'error': 'Background updater not initialized'}), 500
+        
+        # Force update the station
+        try:
+            updated_station = background_updater.force_update(pool_id, market)
+            
+            # Also get updated prices
+            updated_prices = {}
+            for tariff_id in ['HYUNDAI_FLEX', 'HYUNDAI_SMART']:
+                for power_type in ['AC', 'DC']:
+                    price = station_cache.get_price(pool_id, tariff_id, power_type, market)
+                    if price:
+                        key = f"{tariff_id}_{power_type}"
+                        updated_prices[key] = price
+            
+            return jsonify({
+                'success': True,
+                'station': updated_station,
+                'prices': updated_prices,
+                'message': 'Station data refreshed successfully'
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'message': 'Failed to refresh station data'
+            }), 429 if 'rate limit' in str(e).lower() else 500
+        
+    except Exception as e:
+        import traceback
+        print(f"Error in api_cache_refresh: {e}")
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/cache/queue', methods=['POST'])
+def api_cache_queue():
+    """
+    Add a station to the update queue for background update.
+    Lower priority than manual refresh, but will be updated eventually.
+    """
+    try:
+        data = request.json
+        pool_id = data.get('pool_id')
+        market = data.get('market', DEFAULT_MARKET)
+        priority = data.get('priority', 5)  # Default medium priority
+        
+        if not pool_id:
+            return jsonify({'error': 'No pool_id provided'}), 400
+        
+        station_cache.queue_update(pool_id, market, priority)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Station queued for update',
+            'queue_size': station_cache.get_queue_size()
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     # Create templates and static directories if they don't exist
     os.makedirs('templates', exist_ok=True)
@@ -464,6 +754,15 @@ if __name__ == '__main__':
     print("ChargeMyHyundai Price Map")
     print("=" * 60)
     print("Starting server at http://localhost:5000")
+    
+    # Show cache stats
+    stats = station_cache.get_stats()
+    print(f"📦 Cache: {stats['total_stations']} stations, {stats['total_prices']} prices")
+    print(f"   Fresh: {stats['fresh_stations']}, Stale: {stats['stale_stations']}")
+    
+    # Start background updater
+    start_background_updater()
+    
     print("=" * 60)
     
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5000, use_reloader=False)  # Disable reloader to prevent double background threads

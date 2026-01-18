@@ -860,6 +860,81 @@
             margin-right: 4px;
         }
         
+        .popup-price-blocking {
+            font-size: 0.7em;
+            color: #e74c3c;
+            margin-top: 4px;
+            padding: 3px 6px;
+            background: rgba(231, 76, 60, 0.15);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .popup-price-blocking i {
+            color: #e74c3c;
+        }
+        
+        .popup-refresh-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: 100%;
+            padding: 8px;
+            margin-top: 10px;
+            background: linear-gradient(135deg, #0f3460, #16213e);
+            border: 1px solid #1a3a5c;
+            border-radius: 8px;
+            color: #8ab4d8;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .popup-refresh-btn:hover {
+            background: linear-gradient(135deg, #16213e, #1a3a5c);
+            border-color: #00a9e0;
+            color: #00a9e0;
+        }
+        
+        .popup-refresh-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .popup-refresh-btn.loading i {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .popup-cache-info {
+            font-size: 0.7em;
+            color: #666;
+            text-align: center;
+            margin-top: 4px;
+        }
+        
+        .popup-cache-info.stale {
+            color: #e67e22;
+        }
+        
+        .station-blocking-fee {
+            color: #e74c3c;
+            font-size: 0.75em;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 6px;
+            background: rgba(231, 76, 60, 0.1);
+            border-radius: 4px;
+        }
+        
         .popup-price-row {
             display: flex;
             justify-content: space-between;
@@ -1815,6 +1890,10 @@
             return 'de';
         }
         
+        // Track which stations are already loaded (by ID)
+        let loadedStationIds = new Set();
+        let isInitialLoad = true;
+        
         // Load stations for current map bounds
         async function loadStations() {
             const bounds = map.getBounds();
@@ -1827,8 +1906,44 @@
             // Calculate precision based on zoom level
             let precision = Math.min(10, Math.max(3, zoom - 5));
             
+            const boundsParams = `lat_nw=${bounds.getNorth()}&lng_nw=${bounds.getWest()}&lat_se=${bounds.getSouth()}&lng_se=${bounds.getEast()}`;
+            
             try {
-                const response = await fetch(`/api/stations?lat_nw=${bounds.getNorth()}&lng_nw=${bounds.getWest()}&lat_se=${bounds.getSouth()}&lng_se=${bounds.getEast()}&precision=${precision}&market=${currentMarket}`);
+                // STEP 1: Load cached stations first (fast, instant display)
+                if (isInitialLoad) {
+                    showLoading(true);
+                    try {
+                        const cacheResponse = await fetch(`/api/cached-stations?${boundsParams}&market=${currentMarket}`);
+                        const cacheData = await cacheResponse.json();
+                        
+                        if (cacheData.stations && cacheData.stations.length > 0) {
+                            console.log(`Loaded ${cacheData.stations.length} cached stations`);
+                            
+                            // Add cached stations to the stations array
+                            for (const cachedStation of cacheData.stations) {
+                                if (!loadedStationIds.has(cachedStation.id)) {
+                                    loadedStationIds.add(cachedStation.id);
+                                    stations.push(cachedStation);
+                                }
+                            }
+                            
+                            // Update UI immediately with cached data
+                            updateOperatorList();
+                            updateMarkers();
+                            updateList();
+                            updateStats();
+                            
+                            // Start loading prices in background
+                            loadPrices();
+                        }
+                    } catch (cacheError) {
+                        console.warn('Could not load cached stations:', cacheError);
+                    }
+                    isInitialLoad = false;
+                }
+                
+                // STEP 2: Load fresh stations from API (may have new stations)
+                const response = await fetch(`/api/stations?${boundsParams}&precision=${precision}&market=${currentMarket}`);
                 const data = await response.json();
                 
                 if (data.error) {
@@ -1836,12 +1951,41 @@
                     return;
                 }
                 
-                stations = data.pools || [];
+                const apiStations = data.pools || [];
+                let newStationsCount = 0;
+                
+                // Merge API stations with existing (avoid duplicates)
+                for (const apiStation of apiStations) {
+                    if (!loadedStationIds.has(apiStation.id)) {
+                        loadedStationIds.add(apiStation.id);
+                        stations.push(apiStation);
+                        newStationsCount++;
+                    } else {
+                        // Update existing station with fresh API data
+                        const existingIndex = stations.findIndex(s => s.id === apiStation.id);
+                        if (existingIndex !== -1) {
+                            // Merge: keep cached data but update with API data
+                            stations[existingIndex] = {
+                                ...stations[existingIndex],
+                                ...apiStation,
+                                // Keep prices if already loaded
+                                prices: stations[existingIndex].prices || {}
+                            };
+                        }
+                    }
+                }
+                
+                if (newStationsCount > 0) {
+                    console.log(`Added ${newStationsCount} new stations from API`);
+                }
                 
                 // Extract CPO info
                 updateOperatorList();
                 
-                // Get prices for all charge points
+                // Preload all cached prices (for both tariffs) for fast switching
+                await preloadCachedPrices();
+                
+                // Get prices for all charge points (will use cache, only fetch missing)
                 await loadPrices();
                 
                 // Update map and list
@@ -2017,16 +2161,72 @@
             updateStats();
         }
         
+        // Preload cached prices for all tariffs (called once after stations load)
+        async function preloadCachedPrices() {
+            const poolIds = stations.map(s => s.id).filter(id => id);
+            if (poolIds.length === 0) return;
+            
+            try {
+                const response = await fetch('/api/cached-prices', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pool_ids: poolIds,
+                        market: currentMarket
+                    })
+                });
+                
+                if (!response.ok) return;
+                
+                const allPrices = await response.json();
+                let loadedCount = 0;
+                
+                // Store all prices in frontend cache
+                for (const [poolId, prices] of Object.entries(allPrices)) {
+                    const station = stations.find(s => s.id === poolId);
+                    if (!station || !station.chargePoints || station.chargePoints.length === 0) continue;
+                    
+                    const cpId = station.chargePoints[0].id;
+                    
+                    for (const [key, priceData] of Object.entries(prices)) {
+                        // key format: "HYUNDAI_SMART_AC" or "HYUNDAI_FLEX_DC"
+                        const parts = key.split('_');
+                        const powerType = parts.pop(); // AC or DC
+                        const tariffId = parts.join('_'); // HYUNDAI_SMART or HYUNDAI_FLEX
+                        
+                        const cacheKey = `${cpId}_${tariffId}_${powerType}_${currentMarket}`;
+                        priceCache[cacheKey] = {
+                            charge_point: cpId,
+                            power_type: powerType,
+                            currency: priceData.currency || 'EUR',
+                            energy_price: priceData.energy_price,
+                            session_fee: priceData.session_fee,
+                            blocking_fee: priceData.blocking_fee,
+                            blocking_after_minutes: priceData.blocking_after_minutes,
+                            cached: true
+                        };
+                        loadedCount++;
+                    }
+                }
+                
+                console.log(`Preloaded ${loadedCount} prices for all tariffs from cache`);
+            } catch (error) {
+                console.warn('Could not preload cached prices:', error);
+            }
+        }
+        
         // Load prices for stations (for all selected power types)
         async function loadPrices() {
             const chargePoints = [];
             const cpToStation = {};
+            const cpToPoolId = {};  // Map charge point ID to pool ID for caching
             
             for (const station of stations) {
                 if (station.chargePoints && station.chargePoints.length > 0) {
                     const cpId = station.chargePoints[0].id;
                     chargePoints.push(cpId);
                     cpToStation[cpId] = station;
+                    cpToPoolId[cpId] = station.id;  // Map charge point to pool ID for cache
                     // Initialize prices object for both AC and DC
                     station.prices = station.prices || {};
                 }
@@ -2060,33 +2260,39 @@
                 const toFetch = uncached.slice(0, 100);
                 showLoading(true);
                 
-                // Split into small batches of 5 with delay between
-                const batchSize = 5;
+                // Split into larger batches of 15 for faster loading
+                const batchSize = 15;
+                const maxConcurrent = 5;
+                
+                // Create batches
+                const batches = [];
                 for (let i = 0; i < toFetch.length; i += batchSize) {
-                    const batch = toFetch.slice(i, i + batchSize);
-                    
-                    try {
-                        const response = await fetch('/api/prices', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                charge_points: batch,
-                                tariff_id: currentTariff,
-                                power_type: powerType,
-                                power: power,
-                                market: currentMarket
-                            })
-                        });
-                        
-                        const prices = await response.json();
-                        
+                    batches.push({
+                        cps: toFetch.slice(i, i + batchSize),
+                        poolIds: toFetch.slice(i, i + batchSize).map(cp => cpToPoolId[cp])
+                    });
+                }
+                
+                // Process batches with concurrency limit
+                let activePromises = [];
+                for (const batch of batches) {
+                    const fetchPromise = fetch('/api/prices', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            charge_points: batch.cps,
+                            pool_ids: batch.poolIds,
+                            tariff_id: currentTariff,
+                            power_type: powerType,
+                            power: power,
+                            market: currentMarket
+                        })
+                    }).then(r => r.json()).then(prices => {
                         if (Array.isArray(prices)) {
                             for (const price of prices) {
                                 if (price.charge_point) {
                                     const cacheKey = `${price.charge_point}_${currentTariff}_${powerType}_${currentMarket}`;
                                     priceCache[cacheKey] = price;
-                                    
-                                    // Attach price to station
                                     const station = cpToStation[price.charge_point];
                                     if (station) {
                                         station.prices[powerType] = price;
@@ -2094,22 +2300,23 @@
                                 }
                             }
                         }
-                        
-                        // Keep loading indicator visible
-                        
                         // Update UI progressively
                         updateMarkers();
                         updateList();
                         updateStats();
-                        
-                        // Small delay between batches to avoid rate limiting
-                        if (i + batchSize < toFetch.length) {
-                            await new Promise(resolve => setTimeout(resolve, 200));
-                        }
-                    } catch (error) {
-                        console.error('Error loading prices:', error);
+                    }).catch(error => console.error('Error loading prices:', error));
+                    
+                    activePromises.push(fetchPromise);
+                    
+                    // Wait if we hit max concurrent
+                    if (activePromises.length >= maxConcurrent) {
+                        await Promise.race(activePromises);
+                        activePromises = activePromises.filter(p => !p.settled);
                     }
                 }
+                
+                // Wait for remaining
+                await Promise.allSettled(activePromises);
             }
             
             showLoading(false);
@@ -2127,6 +2334,146 @@
         function formatPrice(price, currency = 'EUR') {
             const symbol = currencySymbols[currency] || currency;
             return price.toFixed(2).replace('.', ',') + symbol;
+        }
+        
+        // Format blocking fee for display
+        function formatBlockingFee(price) {
+            if (!price || !price.blocking_fee) return null;
+            
+            const currency = price.currency || 'EUR';
+            const feePerHour = price.blocking_fee;
+            const afterMinutes = price.blocking_after_minutes || 0;
+            
+            // Convert to per-minute fee for display (fee is per hour)
+            const feePerMinute = feePerHour / 60;
+            
+            if (afterMinutes > 0) {
+                return `${formatPrice(feePerMinute, currency)}/min ab ${afterMinutes} min`;
+            } else {
+                return `${formatPrice(feePerMinute, currency)}/min Standgebühr`;
+            }
+        }
+        
+        // Format cache info for display
+        function formatCacheInfo(details) {
+            if (!details || !details.updated_at) return null;
+            
+            const updatedAt = new Date(details.updated_at);
+            const now = new Date();
+            const ageMs = now - updatedAt;
+            const ageHours = ageMs / (1000 * 60 * 60);
+            const ageDays = ageHours / 24;
+            
+            let text = '';
+            let stale = false;
+            
+            if (ageHours < 1) {
+                const ageMinutes = Math.floor(ageMs / (1000 * 60));
+                text = `Aktualisiert vor ${ageMinutes} Minuten`;
+            } else if (ageHours < 24) {
+                text = `Aktualisiert vor ${Math.floor(ageHours)} Stunden`;
+            } else {
+                text = `Aktualisiert vor ${Math.floor(ageDays)} Tagen`;
+                stale = true;
+            }
+            
+            if (details.cached) {
+                text = `📦 ${text}`;
+            }
+            
+            return { text, stale };
+        }
+        
+        // Refresh station data (manual update button)
+        async function refreshStation(stationId, market) {
+            const btn = document.getElementById(`refresh-btn-${stationId}`);
+            const cacheInfo = document.getElementById(`cache-info-${stationId}`);
+            
+            if (!btn) return;
+            
+            // Show loading state
+            btn.disabled = true;
+            btn.classList.add('loading');
+            btn.innerHTML = '<i class="fas fa-sync-alt"></i> Aktualisiere...';
+            
+            try {
+                const response = await fetch('/api/cache/refresh', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pool_id: stationId, market: market })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Update pool details cache for THIS station only
+                    if (result.station) {
+                        poolDetails[stationId] = result.station;
+                    }
+                    
+                    // Update prices for THIS station only (don't clear entire cache)
+                    if (result.prices) {
+                        const station = stations.find(s => s.id === stationId);
+                        if (station && station.chargePoints && station.chargePoints.length > 0) {
+                            const cpId = station.chargePoints[0].id;
+                            // Update AC and DC prices from response
+                            for (const [key, price] of Object.entries(result.prices)) {
+                                const [tariff, powerType] = key.split('_');
+                                if (tariff === currentTariff) {
+                                    const cacheKey = `${cpId}_${currentTariff}_${powerType}_${currentMarket}`;
+                                    priceCache[cacheKey] = price;
+                                    station.prices[powerType] = price;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Update UI
+                    updateMarkers();
+                    updateList();
+                    updateStats();
+                    
+                    btn.innerHTML = '<i class="fas fa-check"></i> Aktualisiert!';
+                    btn.style.borderColor = '#2ecc71';
+                    btn.style.color = '#2ecc71';
+                    
+                    if (cacheInfo) {
+                        cacheInfo.textContent = '📦 Gerade aktualisiert';
+                        cacheInfo.classList.remove('stale');
+                    }
+                    
+                    // Reset button after 2 seconds
+                    setTimeout(() => {
+                        btn.innerHTML = '<i class="fas fa-sync-alt"></i> Preise aktualisieren';
+                        btn.style.borderColor = '';
+                        btn.style.color = '';
+                        btn.disabled = false;
+                        btn.classList.remove('loading');
+                    }, 2000);
+                } else {
+                    throw new Error(result.error || 'Aktualisierung fehlgeschlagen');
+                }
+            } catch (error) {
+                console.error('Refresh error:', error);
+                
+                let errorMsg = 'Fehler!';
+                if (error.message && error.message.includes('rate limit')) {
+                    errorMsg = 'Bitte warten...';
+                }
+                
+                btn.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${errorMsg}`;
+                btn.style.borderColor = '#e74c3c';
+                btn.style.color = '#e74c3c';
+                
+                // Reset button after 3 seconds
+                setTimeout(() => {
+                    btn.innerHTML = '<i class="fas fa-sync-alt"></i> Preise aktualisieren';
+                    btn.style.borderColor = '';
+                    btn.style.color = '';
+                    btn.disabled = false;
+                    btn.classList.remove('loading');
+                }, 3000);
+            }
         }
         
         // Check if station passes filters
@@ -2282,11 +2629,13 @@
                 if (acPrice) {
                     const currency = acPrice.currency || 'EUR';
                     const acTotal = acChargePoints.length;
+                    const blockingInfo = formatBlockingFee(acPrice);
                     priceColumns += `
                         <div class="popup-price-column ac">
                             <div class="popup-price-type"><i class="fas fa-plug"></i> AC</div>
                             <div class="popup-price-main">${formatPrice(acPrice.energy_price, currency)}/kWh</div>
                             ${acPrice.session_fee ? `<div class="popup-price-fee">+ ${formatPrice(acPrice.session_fee, currency)} Start</div>` : ''}
+                            ${blockingInfo ? `<div class="popup-price-blocking"><i class="fas fa-clock"></i> ${blockingInfo}</div>` : ''}
                             ${acTotal > 0 ? `<div class="popup-price-avail" id="avail-ac-${station.id}"><i class="fas fa-spinner fa-spin" style="color: #888"></i> <span style="color: #888">?/${acTotal}</span></div>` : ''}
                         </div>
                     `;
@@ -2294,11 +2643,13 @@
                 if (dcPrice) {
                     const currency = dcPrice.currency || 'EUR';
                     const dcTotal = dcChargePoints.length;
+                    const blockingInfo = formatBlockingFee(dcPrice);
                     priceColumns += `
                         <div class="popup-price-column dc">
                             <div class="popup-price-type"><i class="fas fa-bolt"></i> DC</div>
                             <div class="popup-price-main">${formatPrice(dcPrice.energy_price, currency)}/kWh</div>
                             ${dcPrice.session_fee ? `<div class="popup-price-fee">+ ${formatPrice(dcPrice.session_fee, currency)} Start</div>` : ''}
+                            ${blockingInfo ? `<div class="popup-price-blocking"><i class="fas fa-clock"></i> ${blockingInfo}</div>` : ''}
                             ${dcTotal > 0 ? `<div class="popup-price-avail" id="avail-dc-${station.id}"><i class="fas fa-spinner fa-spin" style="color: #888"></i> <span style="color: #888">?/${dcTotal}</span></div>` : ''}
                         </div>
                     `;
@@ -2337,9 +2688,12 @@
                     .filter((v, i, a) => a.indexOf(v) === i)  // unique
                     .join(', ');
                 
-                // Popup content with availability placeholder
+                // Check if cached and format cache age
+                const cacheInfo = formatCacheInfo(popupDetails);
+                
+                // Popup content with availability placeholder, blocking fees, and refresh button
                 const popupContent = `
-                    <div class="popup-content" data-station-id="${station.id}">
+                    <div class="popup-content" data-station-id="${station.id}" data-market="${currentMarket}">
                         <div class="popup-title">
                             <i class="fas fa-charging-station"></i> ${cpoName}
                         </div>
@@ -2355,6 +2709,10 @@
                             ${popupMaxPower > 0 ? `<span><i class="fas fa-bolt"></i> bis ${popupMaxPower} kW</span>` : ''}
                             ${plugTypesDisplay ? `<span><i class="fas fa-charging-station"></i> ${plugTypesDisplay}</span>` : ''}
                         </div>
+                        <button class="popup-refresh-btn" onclick="refreshStation('${station.id}', '${currentMarket}')" id="refresh-btn-${station.id}">
+                            <i class="fas fa-sync-alt"></i> Preise aktualisieren
+                        </button>
+                        ${cacheInfo ? `<div class="popup-cache-info ${cacheInfo.stale ? 'stale' : ''}" id="cache-info-${station.id}">${cacheInfo.text}</div>` : ''}
                     </div>
                 `;
                 
@@ -2575,6 +2933,15 @@
                     `+${formatPrice(p.session_fee, p.currency || 'EUR')} ${p.type}`
                 ).join(', ');
                 
+                // Blocking fees info
+                const blockingFees = displayPrices.filter(p => p.blocking_fee).map(p => {
+                    const info = formatBlockingFee(p);
+                    return info ? `${p.type}: ${info}` : null;
+                }).filter(Boolean);
+                const blockingFeesHtml = blockingFees.length > 0 
+                    ? `<span class="station-blocking-fee"><i class="fas fa-clock"></i> ${blockingFees.join(' / ')}</span>` 
+                    : '';
+                
                 return `
                     <div class="station-card" data-lat="${station.latitude}" data-lng="${station.longitude}" data-station-id="${station.id}">
                         <div class="station-header">
@@ -2595,6 +2962,7 @@
                             ${maxPower > 0 ? `<span><i class="fas fa-bolt"></i> ${maxPower} kW</span>` : ''}
                             ${sessionFees ? `<span><i class="fas fa-coins"></i> ${sessionFees}</span>` : ''}
                         </div>
+                        ${blockingFeesHtml ? `<div class="station-details" style="padding-top: 6px; margin-top: 6px; border-top: 1px solid #1a3a5c;">${blockingFeesHtml}</div>` : ''}
                     </div>
                 `;
             }).join('');
@@ -2655,12 +3023,44 @@
             
             // Tariff toggle
             document.querySelectorAll('.tariff-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
+                btn.addEventListener('click', async () => {
                     document.querySelectorAll('.tariff-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     currentTariff = btn.dataset.tariff;
-                    priceCache = {}; // Clear cache
-                    loadStations();
+                    
+                    // Don't reload from API - just use cached prices
+                    // Apply cached prices to stations for new tariff
+                    const powerTypes = getEffectivePowerTypes();
+                    let cachedCount = 0;
+                    let missingCount = 0;
+                    
+                    for (const station of stations) {
+                        station.prices = {};
+                        if (station.chargePoints && station.chargePoints.length > 0) {
+                            const cpId = station.chargePoints[0].id;
+                            for (const powerType of powerTypes) {
+                                const cacheKey = `${cpId}_${currentTariff}_${powerType}_${currentMarket}`;
+                                if (priceCache[cacheKey]) {
+                                    station.prices[powerType] = priceCache[cacheKey];
+                                    cachedCount++;
+                                } else {
+                                    missingCount++;
+                                }
+                            }
+                        }
+                    }
+                    
+                    console.log(`Tariff switch: ${cachedCount} cached, ${missingCount} missing`);
+                    
+                    // Update display immediately with cached data
+                    updateMarkers();
+                    updateList();
+                    updateStats();
+                    
+                    // Load any missing prices in background
+                    if (missingCount > 0) {
+                        loadPrices();
+                    }
                 });
             });
             
