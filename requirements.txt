@@ -1,7 +1,7 @@
 # Python dependencies for ChargeMyHyundai Price Map
 
 # Web framework
-flask>=3.0.0
+flask>=3.1.3
 flask-cors>=6.0.5
 
 # HTTP client
